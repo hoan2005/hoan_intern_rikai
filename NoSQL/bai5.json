@@ -1,0 +1,27 @@
+db.nghi_duong.aggregate([
+
+  { $limit: 20 },
+
+  {
+    $project: {
+      name: 1,
+      accommodates: 1,
+      price: 1,
+      _id: 0,
+      price_category: {
+        $switch: {
+          branches: [
+            { case: { $gte: ["$accommodates", 6] }, then: "Large Group" },
+            { case: { $and: [
+                { $gte: ["$accommodates", 4] },
+                { $lte: ["$accommodates", 5] }
+              ] 
+            }, then: "Medium Group" },
+            { case: { $lt: ["$accommodates", 4] }, then: "Couple/Solo" }
+          ],
+          default: "Unknown" 
+        }
+      }
+    }
+  }
+])

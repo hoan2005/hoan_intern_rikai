@@ -1,0 +1,8 @@
+db.nghi_duong.find({
+  "amenities": { 
+    $all: ["Wifi", "Air conditioning", "Kitchen"] 
+  },
+  "room_type": { 
+    $in: ["Entire home/apt", "Private room"] 
+  }
+})

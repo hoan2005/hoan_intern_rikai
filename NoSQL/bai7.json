@@ -1,0 +1,24 @@
+db.nghi_duong.aggregate([
+ 
+  {
+    $group: {
+      _id: "$host.host_id",                  
+      host_name: { $first: "$host.host_name" }, 
+      total_properties: { $sum: 1 }          
+    }
+  },
+  
+
+  {
+    $match: {
+      total_properties: { $gt: 5 }
+    }
+  },
+  
+
+  {
+    $sort: {
+      total_properties: -1
+    }
+  }
+])

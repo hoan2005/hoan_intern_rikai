@@ -1,0 +1,32 @@
+db.nghi_duong.aggregate([
+
+  {
+    $setWindowFields: {
+      partitionBy: "$address.country",                   
+      sortBy: { "review_scores.review_scores_rating": -1 }, 
+      output: {
+        rank_in_country: {
+          $denseRank: {}                               
+        }
+      }
+    }
+  },
+  
+  
+  {
+    $match: {
+      rank_in_country: { $lte: 2 }
+    }
+  },
+  
+  
+  {
+    $project: {
+      _id: 0,
+      country: "$address.country",
+      name: 1,
+      rating: "$review_scores.review_scores_rating",
+      rank_in_country: 1
+    }
+  }
+])

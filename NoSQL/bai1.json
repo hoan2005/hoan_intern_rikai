@@ -1,0 +1,16 @@
+db.nghi_duong.find(
+  {
+    "address.market": "New York",
+    "property_type": "Apartment",
+    "accommodates": { "$gte": 4 }
+  },
+  {
+    "name": 1,
+    "summary": 1,
+    "price": 1,
+    "accommodates": 1,
+    "_id": 0
+  }
+)
+.sort({ "accommodates": -1 })
+.limit(10);

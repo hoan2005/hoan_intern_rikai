@@ -1,0 +1,4 @@
+db.nghi_duong.find({
+  "review_scores.review_scores_rating": { $gte: 95 },
+  "number_of_reviews": { $gte: 50 }
+})

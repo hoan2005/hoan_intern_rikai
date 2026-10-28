@@ -1,0 +1,10 @@
+db.nghi_duong.find({
+  "address.location": {
+    "$geoWithin": {
+      "$centerSphere": [
+        [ -8.61, 41.14 ],   
+        2 / 6378.1          
+      ]
+    }
+  }
+})

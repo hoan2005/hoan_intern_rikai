@@ -1,0 +1,24 @@
+db.nghi_duong.aggregate([
+ 
+  {
+    $addFields: {
+      price: { $toDouble: "$price" }
+    }
+  },
+  
+
+  {
+    $group: {
+      _id: "$address.country",               
+      total_listings: { $sum: 1 },          
+      avg_price: { $avg: "$price" }          
+    }
+  },
+  
+
+  {
+    $sort: {
+      total_listings: -1
+    }
+  }
+])

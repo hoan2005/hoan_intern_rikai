@@ -1,0 +1,14 @@
+db.nghi_duong.aggregate([
+  {
+    $group: {
+      _id: "$property_type",
+      avg_cleanliness: { $avg: "$review_scores.review_scores_cleanliness" },
+      total_listings: { $sum: 1 }
+    }
+  },
+  {
+    $match: {
+      total_listings: { $lte: 10 }
+    }
+  }
+])

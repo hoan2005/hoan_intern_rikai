@@ -1,0 +1,33 @@
+
+[
+
+    {
+        "name": "Jared McCann",
+        "nationality": "CAN",
+        "assists": 21,
+        "goals": 14,
+        "penalties": 12,
+        "team": "PIT",
+        "games": 66
+    },
+    
+    {
+    "name": "Patrik Laine",
+    "nationality": "FIN",
+    "assists": 35,
+    "goals": 28,
+    "penalties": 22,
+    "team": "WPG",
+    "games": 68
+    },
+    
+    {
+        "name": "Markus Granlund",
+        "nationality": "FIN",
+        "assists": 1,
+        "goals": 3,
+        "penalties": 6,
+        "team": "EDM",
+        "games": 34
+    }
+]

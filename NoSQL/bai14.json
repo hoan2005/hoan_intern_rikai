@@ -1,0 +1,39 @@
+db.nghi_duong.aggregate([
+
+  { 
+    $match: { 
+      reviews: { $exists: true, $ne: [] } 
+    } 
+  },
+  
+
+  { 
+    $unwind: "$reviews" 
+  },
+  
+
+  { 
+    $sort: { 
+      "_id": 1,              
+      "reviews.date": -1      
+    } 
+  },
+
+  {
+    $group: {
+      _id: "$_id",
+      name: { $first: "$name" },
+      number_of_reviews: { $first: "$number_of_reviews" },
+      latest_review_date: { $first: "$reviews.date" }
+    }
+  },
+  
+  {
+    $project: {
+      _id: 0,
+      name: 1,
+      number_of_reviews: 1,
+      latest_review_date: 1
+    }
+  }
+])

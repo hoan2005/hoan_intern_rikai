@@ -1,0 +1,32 @@
+db.nghi_duong.aggregate([
+  
+  {
+    $match: {
+      "reviews.date": {
+        $gte: ISODate("2019-01-01T00:00:00Z"),
+        $lte: ISODate("2019-12-31T23:59:59Z")
+      }
+    }
+  },
+
+  { $limit: 5 },
+ 
+  {
+    $project: {
+      name: 1,
+      _id: 0,
+      reviews: {
+        $filter: {
+          input: "$reviews",
+          as: "rev",
+          cond: {
+            $and: [
+              { $gte: ["$$rev.date", ISODate("2019-01-01T00:00:00Z")] },
+              { $lte: ["$$rev.date", ISODate("2019-12-31T23:59:59Z")] }
+            ]
+          }
+        }
+      }
+    }
+  }
+])
