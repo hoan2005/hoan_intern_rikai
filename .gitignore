@@ -1,0 +1,6 @@
+__pycache__/
+venv/
+fast_api/bai20/__pycache__/
+fast_api/bai20/venv/
+fast_api/bai20/uploads/
+*.pyc
