@@ -11,7 +11,7 @@ def _validate_username(value: str) -> str:
 
 def _validate_password(value: str) -> str:
     if len(value) < 6:
-        raise ValueError("Mật khẩu phải có ít nhất 6 ký tự.")
+        raise ValueError("Mật khẩu phải có ít nhất 6 ký tự ")
     return value
 
 
