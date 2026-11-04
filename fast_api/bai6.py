@@ -9,13 +9,10 @@ class UserCreate(BaseModel):
     email: str
     age: int
 
+
 @app.post("/users")
 def create_user(user: UserCreate):
     return {
         "message": "User created successfully",
-        "user": {
-            "name": user.name,
-            "email": user.email,
-            "age": user.age
-        }
+        "user": {"name": user.name, "email": user.email, "age": user.age},
     }

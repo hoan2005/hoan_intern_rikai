@@ -5,23 +5,21 @@ from pydantic_settings import BaseSettings
 
 # Định nghĩa lớp cấu hình (Settings)
 class Settings(BaseSettings):
-  app_name: str = "Default App"
-  debug: bool = False
+    app_name: str = "Default App"
+    debug: bool = False
 
-  class Config:
-    env_file = ".env"  
-
+    class Config:
+        env_file = ".env"
 
 
 @lru_cache()
 def get_settings():
-  return Settings()
+    return Settings()
 
 
 app = FastAPI()
 
 
-
 @app.get("/config")
 def get_config(settings: Settings = Depends(get_settings)):
-  return {"app_name": settings.app_name, "debug": settings.debug}
+    return {"app_name": settings.app_name, "debug": settings.debug}

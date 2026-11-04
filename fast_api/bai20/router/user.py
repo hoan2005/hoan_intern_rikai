@@ -12,8 +12,8 @@ router = APIRouter(prefix="/users", tags=["Quản lý người dùng"])
     summary="Lấy danh sách người dùng",
 )
 def list_users():
-  """Lấy danh sách tất cả người dùng (Không hiển thị mật khẩu)."""
-  return user_controller.get_all_users()
+    """Lấy danh sách tất cả người dùng (Không hiển thị mật khẩu)."""
+    return user_controller.get_all_users()
 
 
 @router.get(
@@ -23,8 +23,8 @@ def list_users():
     summary="Xem chi tiết người dùng theo ID",
 )
 def get_user(user_id: int):
-  """Xem thông tin chi tiết của một người dùng theo ID (Không hiển thị mật khẩu)."""
-  return user_controller.get_user_by_id(user_id)
+    """Xem thông tin chi tiết của một người dùng theo ID (Không hiển thị mật khẩu)."""
+    return user_controller.get_user_by_id(user_id)
 
 
 @router.post(
@@ -34,9 +34,9 @@ def get_user(user_id: int):
     summary="Tạo người dùng mới",
 )
 def create_user(user: UserCreate):
-  """Tạo mới một người dùng (Có nhận mật khẩu vào nhưng trả về sẽ ẩn mật khẩu)."""
+    """Tạo mới một người dùng (Có nhận mật khẩu vào nhưng trả về sẽ ẩn mật khẩu)."""
 
-  return user_controller.create_user(user)
+    return user_controller.create_user(user)
 
 
 @router.put(
@@ -46,8 +46,8 @@ def create_user(user: UserCreate):
     summary="Cập nhật thông tin người dùng",
 )
 def update_user(user_id: int, user: UserUpdate):
-  """Cập nhật thông tin người dùng theo ID."""
-  return user_controller.update_user(user_id, user)
+    """Cập nhật thông tin người dùng theo ID."""
+    return user_controller.update_user(user_id, user)
 
 
 @router.delete(
@@ -56,5 +56,5 @@ def update_user(user_id: int, user: UserUpdate):
     summary="Xóa người dùng",
 )
 def delete_user(user_id: int):
-  """Xóa người dùng khỏi hệ thống theo ID."""
-  return user_controller.delete_user(user_id)
+    """Xóa người dùng khỏi hệ thống theo ID."""
+    return user_controller.delete_user(user_id)

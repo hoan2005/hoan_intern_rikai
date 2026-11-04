@@ -16,6 +16,7 @@ class UserResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
+
 @app.post("/users", response_model=UserResponse)
 def create_user(user: UserCreate):
 

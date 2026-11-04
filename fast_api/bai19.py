@@ -7,6 +7,6 @@ app = FastAPI()
 @app.get("/async-demo")
 async def async_demo():
 
-  await asyncio.sleep(2)
+    await asyncio.sleep(2)
 
-  return {"message": "Completed"}
+    return {"message": "Completed"}

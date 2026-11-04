@@ -16,9 +16,9 @@ app.include_router(user_router.router)
 
 @app.get("/", tags=["Root"])
 def root():
-  return {
-      "message": (
-          "Chào mừng đến với Mini CRUD API! Hãy truy cập /docs để sử dụng"
-          " Swagger UI."
-      )
-  }
+    return {
+        "message": (
+            "Chào mừng đến với Mini CRUD API! Hãy truy cập /docs để sử dụng"
+            " Swagger UI."
+        )
+    }
