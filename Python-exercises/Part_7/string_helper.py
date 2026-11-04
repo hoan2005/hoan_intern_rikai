@@ -1,4 +1,3 @@
-
 def change_case(orig_string: str):
     return orig_string.swapcase()
 
