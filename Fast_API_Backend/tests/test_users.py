@@ -13,6 +13,17 @@ def test_create_user_accepts_valid_data() -> None:
 
     assert user.username == "testuser"
     assert str(user.email) == "user123@gmail.com"
+    assert not hasattr(user, "role")
+
+
+def test_create_user_rejects_role_override() -> None:
+    with pytest.raises(ValidationError):
+        UserCreate(
+            username="testuser",
+            email="user123@gmail.com",
+            password="secret123",
+            role="admin",
+        )
 
 
 def test_create_user_rejects_short_username() -> None:

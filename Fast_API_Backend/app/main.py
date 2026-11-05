@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from app.routers import auth_routers
 from app.routers import post_routers
 from app.routers import user_routers
 from app.database import Base, engine
@@ -15,6 +16,7 @@ Base.metadata.create_all(bind=engine)
 
 app.include_router(user_routers.router)
 app.include_router(post_routers.router)
+app.include_router(auth_routers.router)
 
 
 @app.get("/", tags=["Root"])

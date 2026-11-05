@@ -1,3 +1,4 @@
+from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -11,6 +12,21 @@ def get_all_users(db: Session) -> list[User]:
 
 def get_user_by_id(db: Session, user_id: int) -> User | None:
     return db.query(User).filter(User.id == user_id).first()
+
+
+def get_user_by_username_or_email(
+    db: Session, username_or_email: str
+) -> User | None:
+    return (
+        db.query(User)
+        .filter(
+            or_(
+                User.username == username_or_email,
+                User.email == username_or_email,
+            )
+        )
+        .first()
+    )
 
 
 def get_user_posts(user: User) -> list[Post]:

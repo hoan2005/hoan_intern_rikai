@@ -63,13 +63,39 @@ def test_posts_without_search_are_paginated(monkeypatch) -> None:
         "items": [],
     }
     monkeypatch.setattr(
-        post_service, "get_all_posts", lambda *args: paginated_posts
+        post_service,
+        "get_all_posts",
+        lambda *args, **kwargs: paginated_posts,
     )
 
     response = _create_test_client().get("/posts")
 
     assert response.status_code == 200
     assert response.json() == paginated_posts
+
+
+def test_service_passes_current_user_role_to_repository(monkeypatch) -> None:
+    paginated_posts = {"page": 1, "limit": 10, "total": 0, "items": []}
+    get_all = Mock(return_value=paginated_posts)
+    monkeypatch.setattr(post_service.post_repo, "get_all_posts", get_all)
+    db = Mock()
+
+    result = post_service.get_all_posts(
+        db, current_user_id=7, current_user_role="admin"
+    )
+
+    assert result == paginated_posts
+    get_all.assert_called_once_with(
+        db,
+        1,
+        10,
+        None,
+        None,
+        None,
+        None,
+        current_user_id=7,
+        is_admin=True,
+    )
 
 
 def test_repository_searches_and_paginates_in_created_at_order() -> None:
@@ -94,3 +120,70 @@ def test_repository_searches_and_paginates_in_created_at_order() -> None:
     query.order_by.assert_called_once_with(Post.created_at, Post.id)
     query.offset.assert_called_once_with(1)
     query.limit.assert_called_once_with(1)
+
+
+def test_repository_hides_unpublished_posts_from_anonymous_users() -> None:
+    query = Mock()
+    query.filter.return_value = query
+    query.order_by.return_value = query
+    query.count.return_value = 0
+    query.offset.return_value = query
+    query.limit.return_value = query
+    query.all.return_value = []
+    db = Mock()
+    db.query.return_value = query
+
+    get_all_posts(db, page=1, limit=10)
+
+    filters = [
+        str(call.args[0].compile(dialect=postgresql.dialect()))
+        for call in query.filter.call_args_list
+    ]
+    assert any("published IS true" in expression for expression in filters)
+
+
+def test_repository_allows_own_drafts_for_user_and_all_posts_for_admin() -> (
+    None
+):
+    def create_db():
+        query = Mock()
+        query.filter.return_value = query
+        query.order_by.return_value = query
+        query.count.return_value = 0
+        query.offset.return_value = query
+        query.limit.return_value = query
+        query.all.return_value = []
+        db = Mock()
+        db.query.return_value = query
+        return db, query
+
+    user_db, user_query = create_db()
+    get_all_posts(
+        user_db,
+        page=1,
+        limit=10,
+        current_user_id=7,
+    )
+    user_filters = [
+        str(
+            call.args[0].compile(
+                dialect=postgresql.dialect(),
+                compile_kwargs={"literal_binds": True},
+            )
+        )
+        for call in user_query.filter.call_args_list
+    ]
+    assert any(
+        "published IS true" in expression and "user_id = 7" in expression
+        for expression in user_filters
+    )
+
+    admin_db, admin_query = create_db()
+    get_all_posts(
+        admin_db,
+        page=1,
+        limit=10,
+        current_user_id=7,
+        is_admin=True,
+    )
+    admin_query.filter.assert_not_called()

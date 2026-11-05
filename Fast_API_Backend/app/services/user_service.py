@@ -5,18 +5,27 @@ from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.models.post_models import Post
 from app.models.user_models import User
-from app.repositories import user_repo
+from app.repositories import post_repo, user_repo
 from app.schemas.user_schemas import UserCreate, UserUpdate
 
 
 def _hash_password(password: str) -> str:
     salt = secrets.token_bytes(16)
     password_hash = hashlib.scrypt(
-        password.encode("utf-8"), salt=salt, n=2**14, r=8, p=1
+        password.encode("utf-8"),
+        salt=salt,
+        n=settings.SCRYPT_N,
+        r=settings.SCRYPT_R,
+        p=settings.SCRYPT_P,
     )
-    return f"scrypt$16384$8$1${salt.hex()}${password_hash.hex()}"
+    return (
+        f"{settings.SCRYPT_ALGORITHM}${settings.SCRYPT_N}"
+        f"${settings.SCRYPT_R}${settings.SCRYPT_P}"
+        f"${salt.hex()}${password_hash.hex()}"
+    )
 
 
 def get_all_users(db: Session) -> list[User]:
@@ -33,9 +42,20 @@ def get_user_by_id(db: Session, user_id: int) -> User:
     return user
 
 
-def get_user_posts(db: Session, user_id: int) -> list[Post]:
-    user = get_user_by_id(db, user_id)
-    return user_repo.get_user_posts(user)
+def get_user_posts(
+    db: Session,
+    user_id: int,
+    current_user_id: int | None = None,
+    current_user_role: str | None = None,
+) -> list[Post]:
+    get_user_by_id(db, user_id)
+    return post_repo.get_user_posts(
+        db,
+        user_id,
+        include_unpublished=(
+            current_user_role == "admin" or current_user_id == user_id
+        ),
+    )
 
 
 def create_user(db: Session, user_data: UserCreate) -> User:
@@ -43,6 +63,7 @@ def create_user(db: Session, user_data: UserCreate) -> User:
         username=user_data.username,
         email=str(user_data.email),
         hashed_password=_hash_password(user_data.password),
+        role="user",
     )
     try:
         return user_repo.create_user(db, user)

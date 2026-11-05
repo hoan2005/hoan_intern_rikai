@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
@@ -54,6 +56,8 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     password: str = Field(..., description="Mật khẩu ít nhất 6 ký tự")
 
+    model_config = ConfigDict(extra="forbid")
+
     @field_validator("password")
     @classmethod
     def validate_password(cls, value: str) -> str:
@@ -64,6 +68,9 @@ class UserUpdate(BaseModel):
     username: str | None = Field(None, description="Tên người dùng mới")
     email: EmailStr | None = Field(None, description="Email mới")
     password: str | None = Field(None, description="Mật khẩu mới")
+    role: Literal["user", "admin"] | None = Field(
+        None, description="Vai trò mới (chỉ quản trị viên được thay đổi)"
+    )
 
     @field_validator("username")
     @classmethod
@@ -83,5 +90,13 @@ class UserUpdate(BaseModel):
 
 class UserResponse(UserBase):
     id: int = Field(..., description="ID định danh người dùng")
+    role: Literal["user", "admin"] = Field(
+        ..., description="Vai trò: user hoặc admin"
+    )
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"

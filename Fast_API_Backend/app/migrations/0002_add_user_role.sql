@@ -1,0 +1,2 @@
+ALTER TABLE "user"."user"
+    ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'user';

@@ -23,24 +23,9 @@ def _validate_content(value: object) -> str:
     return value
 
 
-def _validate_user_id(value: object) -> int:
-    if isinstance(value, bool):
-        raise ValueError("ID người dùng phải là số nguyên dương.")
-    if isinstance(value, float) and not value.is_integer():
-        raise ValueError("ID người dùng phải là số nguyên dương.")
-    try:
-        user_id = int(value)
-    except (TypeError, ValueError):
-        raise ValueError("ID người dùng phải là số nguyên dương.") from None
-    if user_id <= 0:
-        raise ValueError("ID người dùng phải là số nguyên dương.")
-    return user_id
-
-
 class PostCreate(BaseModel):
     title: str = Field(..., description="Tiêu đề bài viết")
     content: str = Field(..., description="Nội dung bài viết")
-    user_id: int = Field(..., description="ID người tạo bài viết")
     category: str | None = Field(
         None, max_length=100, description="Danh mục bài viết"
     )
@@ -55,11 +40,6 @@ class PostCreate(BaseModel):
     @classmethod
     def validate_content(cls, value: object) -> str:
         return _validate_content(value)
-
-    @field_validator("user_id", mode="before")
-    @classmethod
-    def validate_user_id(cls, value: object) -> int:
-        return _validate_user_id(value)
 
     @field_validator("category", mode="before")
     @classmethod
@@ -79,7 +59,6 @@ class PostCreate(BaseModel):
 class PostUpdate(BaseModel):
     title: str | None = Field(None, description="Tiêu đề mới")
     content: str | None = Field(None, description="Nội dung mới")
-    user_id: int | None = Field(None, description="ID người dùng mới")
     category: str | None = Field(None, description="Danh mục mới")
     published: bool | None = Field(None, description="Trạng thái xuất bản mới")
 
@@ -92,11 +71,6 @@ class PostUpdate(BaseModel):
     @classmethod
     def validate_content(cls, value: object) -> str:
         return _validate_content(value)
-
-    @field_validator("user_id", mode="before")
-    @classmethod
-    def validate_user_id(cls, value: object) -> int:
-        return _validate_user_id(value)
 
     @field_validator("category", mode="before")
     @classmethod

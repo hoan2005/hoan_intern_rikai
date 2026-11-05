@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Literal
 from urllib.parse import quote_plus
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -15,6 +16,12 @@ class Settings(BaseSettings):
     DB_HOST: str = "localhost"
     DB_PORT: int = 5432
     DB_NAME: str = "postgres"
+    JWT_SECRET_KEY: str = ""
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    SCRYPT_ALGORITHM: Literal["scrypt"] = "scrypt"
+    SCRYPT_N: int = 16384
+    SCRYPT_R: int = 8
+    SCRYPT_P: int = 1
 
     @property
     def SQLALCHEMY_DATABASE_URL(self) -> str:
@@ -30,3 +37,6 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env", env_file_encoding="utf-8", extra="ignore"
     )
+
+
+settings = Settings()

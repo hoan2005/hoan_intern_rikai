@@ -70,6 +70,21 @@ DB_PORT=5432
 DB_NAME=<your-database>
 ```
 
+Thêm khóa bí mật JWT vào file môi trường (dùng khóa ngẫu nhiên dài khi chạy
+thực tế):
+
+```env
+JWT_SECRET_KEY=<your-random-secret>
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
+SCRYPT_ALGORITHM=scrypt
+SCRYPT_N=16384
+SCRYPT_R=8
+SCRYPT_P=1
+```
+
+Giữ nguyên cấu hình SCRYPT sau khi đã tạo tài khoản để các mật khẩu hiện có
+tiếp tục được xác thực.
+
 Nếu có `DATABASE_URL`, ứng dụng sẽ ưu tiên giá trị này thay cho các biến
 `DB_*`. Không commit thông tin xác thực thật lên Git. File `app/.env` đã
 được Git bỏ qua.
@@ -94,6 +109,7 @@ chính:
 
 | Nhóm | Endpoint | Chức năng |
 |---|---|---|
+| Xác thực | `/profile` | Hồ sơ người dùng đang đăng nhập |
 | Người dùng | `/users` | Danh sách và tạo người dùng |
 | Người dùng | `/users/{user_id}` | Xem, cập nhật hoặc xóa người dùng |
 | Bài viết | `/posts` | Danh sách, tạo và tìm kiếm bài viết |
@@ -109,8 +125,26 @@ xếp tiếp theo ID để giữ thứ tự ổn định. Ví dụ:
 GET /posts?search=fastapi&page=1&limit=10
 ```
 
-Không có tài khoản demo được cấu hình sẵn. Có thể tạo người dùng mới thông
-qua `POST /users` trong Swagger UI.
+
+### Quyền truy cập và vai trò
+
+`GET /profile` yêu cầu JWT hợp lệ. Khách chưa đăng nhập chỉ thấy bài viết
+đã xuất bản; người dùng đăng nhập thấy thêm bản nháp do chính mình tạo.
+Người dùng chỉ được xem, sửa và xóa bản nháp của mình. Truy cập bài viết
+không thuộc quyền được phép trả về `404` để không tiết lộ bài viết riêng tư.
+
+`GET /users` yêu cầu đăng nhập; `POST /users` chỉ admin được dùng. User
+không thể tự gán hoặc đổi role thành `admin`; tài khoản admin ban đầu được
+cấp quyền trực tiếp trong database. Admin có thể quản lý mọi người dùng và
+bài viết; user chỉ quản lý hồ sơ của mình và bản nháp của mình.
+
+TAI_KHOAN_USER:
+username : lam
+password: lamxinhyeu
+
+TAI_KHOAN_ADMIN:
+username: hoan
+passwword : hoan12345
 
 ## Cấu trúc thư mục
 

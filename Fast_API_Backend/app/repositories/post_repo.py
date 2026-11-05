@@ -13,8 +13,20 @@ def get_all_posts(
     category: str | None = None,
     published: bool | None = None,
     search: str | None = None,
+    current_user_id: int | None = None,
+    is_admin: bool = False,
 ) -> dict[str, int | list[Post]]:
     query = db.query(Post)
+    if not is_admin:
+        if current_user_id is None:
+            query = query.filter(Post.published.is_(True))
+        else:
+            query = query.filter(
+                or_(
+                    Post.published.is_(True),
+                    Post.user_id == current_user_id,
+                )
+            )
     if search is not None:
         search_pattern = f"%{search}%"
         query = query.filter(
@@ -39,11 +51,22 @@ def get_post_by_id(db: Session, post_id: int) -> Post | None:
     return db.query(Post).filter(Post.id == post_id).first()
 
 
-def create_post(db: Session, post_data: PostCreate) -> Post:
+def get_user_posts(
+    db: Session,
+    user_id: int,
+    include_unpublished: bool,
+) -> list[Post]:
+    query = db.query(Post).filter(Post.user_id == user_id)
+    if not include_unpublished:
+        query = query.filter(Post.published.is_(True))
+    return query.order_by(Post.created_at, Post.id).all()
+
+
+def create_post(db: Session, post_data: PostCreate, user_id: int) -> Post:
     post = Post(
         title=post_data.title,
         content=post_data.content,
-        user_id=post_data.user_id,
+        user_id=user_id,
         category=post_data.category,
         published=post_data.published,
     )

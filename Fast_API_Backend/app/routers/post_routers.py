@@ -1,7 +1,12 @@
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.dependencies import get_db
+from app.dependencies import (
+    get_current_user,
+    get_db,
+    get_optional_current_user,
+)
+from app.models.user_models import User
 from app.schemas.post_schemas import (
     PaginatedPostResponse,
     PostCreate,
@@ -36,10 +41,19 @@ def list_posts(
     search: str | None = Query(
         None, min_length=1, description="Tìm trong tiêu đề và nội dung"
     ),
+    current_user: User | None = Depends(get_optional_current_user),
     db: Session = Depends(get_db),
 ):
     return post_service.get_all_posts(
-        db, page, limit, author_id, category, published, search
+        db,
+        page,
+        limit,
+        author_id,
+        category,
+        published,
+        search,
+        current_user_id=current_user.id if current_user else None,
+        current_user_role=current_user.role if current_user else None,
     )
 
 
@@ -49,8 +63,21 @@ def list_posts(
     status_code=status.HTTP_200_OK,
     summary="Xem chi tiết bài viết",
 )
-def get_post(post_id: int, db: Session = Depends(get_db)):
-    return post_service.get_post_by_id(db, post_id)
+def get_post(
+    post_id: int,
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_current_user),
+):
+    post = post_service.get_post_by_id(db, post_id)
+    if not post.published and (
+        current_user is None
+        or (current_user.role != "admin" and post.user_id != current_user.id)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Không tìm thấy bài viết với ID: {post_id}",
+        )
+    return post
 
 
 @router.post(
@@ -59,8 +86,12 @@ def get_post(post_id: int, db: Session = Depends(get_db)):
     status_code=status.HTTP_201_CREATED,
     summary="Tạo bài viết mới",
 )
-def create_post(post: PostCreate, db: Session = Depends(get_db)):
-    return post_service.create_post(db, post)
+def create_post(
+    post_data: PostCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return post_service.create_post(db, post_data, current_user.id)
 
 
 @router.put(
@@ -69,8 +100,19 @@ def create_post(post: PostCreate, db: Session = Depends(get_db)):
     status_code=status.HTTP_200_OK,
     summary="Cập nhật bài viết",
 )
-def update_post(post_id: int, post: PostUpdate, db: Session = Depends(get_db)):
-    return post_service.update_post(db, post_id, post)
+def update_post(
+    post_id: int,
+    post_data: PostUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    post = post_service.get_post_by_id(db, post_id)
+    if current_user.role != "admin" and post.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bạn chưa đủ quyền thực hiện thao tác này.",
+        )
+    return post_service.update_post(db, post, post_data)
 
 
 @router.delete(
@@ -78,5 +120,15 @@ def update_post(post_id: int, post: PostUpdate, db: Session = Depends(get_db)):
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Xóa bài viết",
 )
-def delete_post(post_id: int, db: Session = Depends(get_db)):
-    post_service.delete_post(db, post_id)
+def delete_post(
+    post_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    post = post_service.get_post_by_id(db, post_id)
+    if current_user.role != "admin" and post.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bạn chưa đủ quyền thực hiện thao tác này.",
+        )
+    post_service.delete_post(db, post)
