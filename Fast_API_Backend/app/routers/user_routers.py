@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.dependencies import (
@@ -72,12 +72,7 @@ def create_user(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Bạn chưa đủ quyền thực hiện thao tác này.",
-        )
-    return user_service.create_user(db, user_data)
+    return user_service.create_user(db, user_data, current_user)
 
 
 @router.put(
@@ -92,17 +87,7 @@ def update_user(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    if "role" in user_data.model_fields_set and current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Bạn chưa đủ quyền thực hiện thao tác này.",
-        )
-    if current_user.role != "admin" and user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Bạn chưa đủ quyền thực hiện thao tác này.",
-        )
-    return user_service.update_user(db, user_id, user_data)
+    return user_service.update_user(db, user_id, user_data, current_user)
 
 
 @router.delete(
@@ -115,9 +100,4 @@ def delete_user(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    if current_user.role != "admin" :
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Bạn chưa đủ quyền thực hiện thao tác này.",
-        )
-    return user_service.delete_user(db, user_id)
+    return user_service.delete_user(db, user_id, current_user)

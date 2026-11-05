@@ -3,6 +3,7 @@ from unittest.mock import Mock
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+import pytest
 from sqlalchemy.dialects import postgresql
 
 from app.dependencies import get_db
@@ -72,6 +73,24 @@ def test_posts_without_search_are_paginated(monkeypatch) -> None:
 
     assert response.status_code == 200
     assert response.json() == paginated_posts
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {"page": 0},
+        {"limit": 0},
+        {"limit": 101},
+        {"author_id": 0},
+        {"category": ""},
+        {"category": "a" * 101},
+        {"search": ""},
+    ],
+)
+def test_list_posts_validates_filters_in_service(params) -> None:
+    response = _create_test_client().get("/posts", params=params)
+
+    assert response.status_code == 422
 
 
 def test_service_passes_current_user_role_to_repository(monkeypatch) -> None:

@@ -97,14 +97,12 @@ def test_post_mutations_require_owner_or_admin(monkeypatch) -> None:
         lambda db, user_id: current_user,
     )
     monkeypatch.setattr(
-        post_service,
-        "get_post_by_id",
-        lambda db, post_id: post,
+        post_service.post_repo, "get_post_by_id", lambda db, post_id: post
     )
     update_post = Mock()
     delete_post = Mock()
-    monkeypatch.setattr(post_service, "update_post", update_post)
-    monkeypatch.setattr(post_service, "delete_post", delete_post)
+    monkeypatch.setattr(post_service.post_repo, "update_post", update_post)
+    monkeypatch.setattr(post_service.post_repo, "delete_post", delete_post)
     token = auth_service.create_access_token(7)
     client = _create_test_client()
     headers = {"Authorization": f"Bearer {token}"}
@@ -140,14 +138,12 @@ def test_admin_can_manage_another_users_post(monkeypatch) -> None:
         lambda db, user_id: current_user,
     )
     monkeypatch.setattr(
-        post_service,
-        "get_post_by_id",
-        lambda db, post_id: post,
+        post_service.post_repo, "get_post_by_id", lambda db, post_id: post
     )
     update_post = Mock(return_value=post_response)
     delete_post = Mock()
-    monkeypatch.setattr(post_service, "update_post", update_post)
-    monkeypatch.setattr(post_service, "delete_post", delete_post)
+    monkeypatch.setattr(post_service.post_repo, "update_post", update_post)
+    monkeypatch.setattr(post_service.post_repo, "delete_post", delete_post)
     token = auth_service.create_access_token(7)
     client = _create_test_client()
     headers = {"Authorization": f"Bearer {token}"}
@@ -162,6 +158,7 @@ def test_admin_can_manage_another_users_post(monkeypatch) -> None:
     update_post.assert_called_once()
     delete_post.assert_called_once()
     assert len(update_post.call_args.args) == 3
+    assert update_post.call_args.args[1] is post
     assert len(delete_post.call_args.args) == 2
     assert delete_post.call_args.args[1] is post
 
