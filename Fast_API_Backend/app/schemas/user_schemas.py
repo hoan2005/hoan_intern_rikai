@@ -56,7 +56,18 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     password: str = Field(..., description="Mật khẩu ít nhất 6 ký tự")
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            "examples": [
+                {
+                    "username": "nguyenvana",
+                    "email": "vana123@gmail.com",
+                    "password": "secret123",
+                }
+            ]
+        },
+    )
 
     @field_validator("password")
     @classmethod
@@ -70,6 +81,18 @@ class UserUpdate(BaseModel):
     password: str | None = Field(None, description="Mật khẩu mới")
     role: Literal["user", "admin"] | None = Field(
         None, description="Vai trò mới (chỉ quản trị viên được thay đổi)"
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "username": "nguyenvana_moi",
+                    "email": "vana456@gmail.com",
+                    "password": "newsecret123",
+                }
+            ]
+        }
     )
 
     @field_validator("username")
@@ -94,9 +117,32 @@ class UserResponse(UserBase):
         ..., description="Vai trò: user hoặc admin"
     )
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "examples": [
+                {
+                    "id": 7,
+                    "username": "nguyenvana",
+                    "email": "vana123@gmail.com",
+                    "role": "user",
+                }
+            ]
+        },
+    )
 
 
 class TokenResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
+    access_token: str = Field(..., description="JWT access token")
+    token_type: str = Field("bearer", description="Loại token")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                    "token_type": "bearer",
+                }
+            ]
+        }
+    )

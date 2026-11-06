@@ -13,12 +13,21 @@ phân trang. Dữ liệu được lưu trong PostgreSQL.
 - SQLAlchemy
 - Pydantic
 - PostgreSQL
+- Redis
 - Psycopg
+
+## Ghi nhật ký
+
+Ứng dụng ghi các request đến, mã trạng thái phản hồi, thời gian xử lý và
+ngoại lệ vào `app.log` tại thư mục gốc của dự án. Các lỗi validation được
+ghi lại cùng đường dẫn và tên trường lỗi, không ghi giá trị dữ liệu gửi lên.
+Tệp log được tạo tự động khi ứng dụng nhận request và được Git bỏ qua.
 
 ## Yêu cầu môi trường
 
 - Python 3.10 trở lên
 - PostgreSQL đang chạy và có database để ứng dụng kết nối
+- Redis đang chạy
 - Git
 
 ## Cài đặt
@@ -82,12 +91,34 @@ SCRYPT_R=8
 SCRYPT_P=1
 ```
 
+Thêm cấu hình Redis và giới hạn request vào `app/.env`:
+
+```env
+REDIS_URL=redis://localhost:6379/0
+REDIS_MAX_CONNECTIONS=20
+RATE_LIMIT_REQUESTS=10
+RATE_LIMIT_WINDOW_SECONDS=60
+```
+
+Giới hạn mặc định của ứng dụng là 100 request mỗi client trong 60 giây.
+`app/.env.example` đặt `RATE_LIMIT_REQUESTS=10` để kiểm thử; đổi thành `100`
+khi không còn cần kiểm thử giới hạn thấp. `REDIS_MAX_CONNECTIONS` cấu hình
+số kết nối tối đa trong pool Redis của mỗi tiến trình ứng dụng. Không commit
+`app/.env`; có thể sao chép các biến Redis từ `app/.env.example`.
+
 Giữ nguyên cấu hình SCRYPT sau khi đã tạo tài khoản để các mật khẩu hiện có
 tiếp tục được xác thực.
 
 Nếu có `DATABASE_URL`, ứng dụng sẽ ưu tiên giá trị này thay cho các biến
 `DB_*`. Không commit thông tin xác thực thật lên Git. File `app/.env` đã
 được Git bỏ qua.
+
+## Giới hạn tốc độ
+
+Mỗi địa chỉ IP được giới hạn theo `RATE_LIMIT_REQUESTS` trong khoảng thời
+gian `RATE_LIMIT_WINDOW_SECONDS`. Request vượt ngưỡng nhận phản hồi `429 Too
+Many Requests` kèm header `Retry-After`. Redis dùng chung bộ đếm giữa các
+worker; nếu Redis không khả dụng, API trả về `503` thay vì bỏ qua giới hạn.
 
 ## Chạy dự án
 
@@ -156,8 +187,11 @@ Fast_API_Backend/
 │   ├── database.py                 # Cấu hình kết nối SQLAlchemy
 │   ├── dependencies.py             # Dependency dùng chung, ví dụ database session
 │   ├── exceptions.py               # Đăng ký xử lý ngoại lệ
+│   ├── middleware.py               # Ghi nhật ký request và phản hồi
+│   ├── rate_limit.py               # Giới hạn request theo client bằng Redis
 │   ├── core/
-│   │   └── config.py               # Đọc cấu hình ứng dụng và database
+│   │   ├── config.py               # Đọc cấu hình ứng dụng và database
+│   │   └── logging_config.py       # Cấu hình ghi log vào app.log
 │   ├── migrations/
 │   │   └── 0001_add_post_filter_fields.sql  # Migration cho các trường lọc bài viết
 │   ├── models/
@@ -173,6 +207,7 @@ Fast_API_Backend/
 ├── tests/
 │   └── test_posts.py               # Kiểm thử API và chức năng bài viết
 ├── requirements.txt                # Dependencies của dự án
+├── app/.env.example                # Mẫu cấu hình Redis và rate limit
 ├── pyproject.toml                  # Cấu hình công cụ Python
 ├── .flake8                         # Cấu hình Flake8
 ├── .gitignore                      # Các file và thư mục Git bỏ qua

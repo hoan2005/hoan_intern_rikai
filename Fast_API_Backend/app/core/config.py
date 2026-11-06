@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Literal
 from urllib.parse import quote_plus
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -18,6 +19,10 @@ class Settings(BaseSettings):
     DB_NAME: str = "postgres"
     JWT_SECRET_KEY: str = ""
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REDIS_URL: str = "redis://localhost:6379/0"
+    REDIS_MAX_CONNECTIONS: int = Field(default=20, gt=0)
+    RATE_LIMIT_REQUESTS: int = Field(default=100, gt=0)
+    RATE_LIMIT_WINDOW_SECONDS: int = Field(default=60, gt=0)
     SCRYPT_ALGORITHM: Literal["scrypt"] = "scrypt"
     SCRYPT_N: int = 16384
     SCRYPT_R: int = 8

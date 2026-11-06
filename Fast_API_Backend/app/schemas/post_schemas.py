@@ -31,6 +31,19 @@ class PostCreate(BaseModel):
     )
     published: bool = Field(False, description="Trạng thái xuất bản")
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "title": "Bắt đầu với FastAPI",
+                    "content": "FastAPI giúp xây dựng API Python nhanh chóng.",
+                    "category": "Công nghệ",
+                    "published": True,
+                }
+            ]
+        }
+    )
+
     @field_validator("title", mode="before")
     @classmethod
     def validate_title(cls, value: object) -> str:
@@ -61,6 +74,17 @@ class PostUpdate(BaseModel):
     content: str | None = Field(None, description="Nội dung mới")
     category: str | None = Field(None, description="Danh mục mới")
     published: bool | None = Field(None, description="Trạng thái xuất bản mới")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "title": "Cập nhật bài viết FastAPI",
+                    "published": True,
+                }
+            ]
+        }
+    )
 
     @field_validator("title", mode="before")
     @classmethod
@@ -96,11 +120,53 @@ class PostResponse(BaseModel):
     published: bool
     created_at: datetime
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "examples": [
+                {
+                    "id": 1,
+                    "title": "Bắt đầu với FastAPI",
+                    "content": "FastAPI giúp xây dựng API Python nhanh chóng.",
+                    "user_id": 7,
+                    "category": "Công nghệ",
+                    "published": True,
+                    "created_at": "2026-01-01T10:00:00Z",
+                }
+            ]
+        },
+    )
 
 
 class PaginatedPostResponse(BaseModel):
-    page: int
-    limit: int
-    total: int
-    items: list[PostResponse]
+    page: int = Field(..., description="Trang hiện tại")
+    limit: int = Field(..., description="Số bài viết tối đa trên một trang")
+    total: int = Field(..., description="Tổng số bài viết phù hợp")
+    items: list[PostResponse] = Field(
+        ..., description="Các bài viết của trang"
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "page": 1,
+                    "limit": 10,
+                    "total": 1,
+                    "items": [
+                        {
+                            "id": 1,
+                            "title": "Bắt đầu với FastAPI",
+                            "content": (
+                                "FastAPI giúp xây dựng API Python nhanh chóng."
+                            ),
+                            "user_id": 7,
+                            "category": "Công nghệ",
+                            "published": True,
+                            "created_at": "2026-01-01T10:00:00Z",
+                        }
+                    ],
+                }
+            ]
+        }
+    )
