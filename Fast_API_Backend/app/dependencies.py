@@ -2,7 +2,7 @@ from collections.abc import Generator
 
 import jwt
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -10,7 +10,7 @@ from app.database import SessionLocal
 from app.models.user_models import User
 from app.repositories import user_repo
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login", auto_error=False)
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def get_db() -> Generator[Session, None, None]:
@@ -56,12 +56,12 @@ def _get_user_from_token(token: str, db: Session) -> User:
 
 
 def get_optional_current_user(
-    token: str | None = Depends(oauth2_scheme),
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     db: Session = Depends(get_db),
 ) -> User | None:
-    if token is None:
+    if credentials is None:
         return None
-    return _get_user_from_token(token, db)
+    return _get_user_from_token(credentials.credentials, db)
 
 
 def get_current_user(
@@ -77,10 +77,16 @@ def get_current_user(
 
 
 def get_current_user_id(
-    token: str = Depends(oauth2_scheme),
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     db: Session = Depends(get_db),
 ) -> int:
-    user = _get_user_from_token(token, db)
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Chưa đăng nhập.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    user = _get_user_from_token(credentials.credentials, db)
     return user.id
 
 

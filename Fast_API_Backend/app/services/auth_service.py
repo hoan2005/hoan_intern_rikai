@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.repositories import user_repo
+from app.schemas.user_schemas import TokenResponse
 
 
 def _verify_password(password: str, stored_hash: str) -> bool:
@@ -48,6 +49,17 @@ def authenticate_user(
     if user is None or not _verify_password(password, user.hashed_password):
         return None
     return user.id
+
+
+def login(db: Session, username_or_email: str, password: str) -> TokenResponse:
+    user_id = authenticate_user(db, username_or_email, password)
+    if user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Tên đăng nhập/email hoặc mật khẩu không chính xác.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return TokenResponse(access_token=create_access_token(user_id))
 
 
 def create_access_token(user_id: int) -> str:

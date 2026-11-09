@@ -6,10 +6,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.models.post_models import Post
 from app.models.user_models import User
-from app.repositories import post_repo, user_repo
-from app.schemas.user_schemas import UserCreate, UserUpdate
+from app.repositories import user_repo
+from app.schemas.user_schemas import (
+    UserCreate,
+    UserPostsResponse,
+    UserUpdate,
+)
 
 
 def _hash_password(password: str) -> str:
@@ -42,20 +45,51 @@ def get_user_by_id(db: Session, user_id: int) -> User:
     return user
 
 
-def get_user_posts(
+def get_users_with_posts(
     db: Session,
-    user_id: int,
-    current_user_id: int | None = None,
-    current_user_role: str | None = None,
-) -> list[Post]:
-    get_user_by_id(db, user_id)
-    return post_repo.get_user_posts(
+    user_ids_parameter: str,
+    current_user: User | None = None,
+) -> list[UserPostsResponse]:
+    try:
+        user_ids = list(
+            dict.fromkeys(
+                int(value.strip()) for value in user_ids_parameter.split(",")
+            )
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Danh sách ID người dùng không hợp lệ.",
+        ) from exc
+    if not user_ids or any(value <= 0 for value in user_ids):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="ID người dùng phải lớn hơn 0.",
+        )
+
+    users = user_repo.get_users_with_posts(
         db,
-        user_id,
-        include_unpublished=(
-            current_user_role == "admin" or current_user_id == user_id
-        ),
+        user_ids,
+        current_user.id if current_user else None,
+        is_admin=current_user is not None and current_user.role == "admin",
     )
+    found_ids = {user.id for user in users}
+    missing_id = next(
+        (user_id for user_id in user_ids if user_id not in found_ids), None
+    )
+    if missing_id is not None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Không tìm thấy người dùng với ID: {missing_id}",
+        )
+    users_by_id = {user.id: user for user in users}
+    return [
+        UserPostsResponse(
+            user_id=user.id,
+            posts=user.posts,
+        )
+        for user in (users_by_id[user_id] for user_id in user_ids)
+    ]
 
 
 def create_user(

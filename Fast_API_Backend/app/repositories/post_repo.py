@@ -51,17 +51,6 @@ def get_post_by_id(db: Session, post_id: int) -> Post | None:
     return db.query(Post).filter(Post.id == post_id).first()
 
 
-def get_user_posts(
-    db: Session,
-    user_id: int,
-    include_unpublished: bool,
-) -> list[Post]:
-    query = db.query(Post).filter(Post.user_id == user_id)
-    if not include_unpublished:
-        query = query.filter(Post.published.is_(True))
-    return query.order_by(Post.created_at, Post.id).all()
-
-
 def create_post(db: Session, post_data: PostCreate, user_id: int) -> Post:
     post = Post(
         title=post_data.title,

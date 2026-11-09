@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 from sqlalchemy.orm import Session
 
 from app.dependencies import (
@@ -31,6 +31,12 @@ router = APIRouter(prefix="/posts", tags=["Quản lý bài viết"])
     ),
     response_description="Trang bài viết và tổng số kết quả phù hợp.",
     responses={
+        200: {
+            "description": (
+                "Trang bài viết. Header `X-Data-Source` cho biết dữ liệu "
+                "được lấy từ `redis` hoặc `database`."
+            ),
+        },
         401: {
             "description": "Token đã cung cấp không hợp lệ hoặc hết hạn.",
             "content": {
@@ -47,15 +53,15 @@ router = APIRouter(prefix="/posts", tags=["Quản lý bài viết"])
             "description": "Tham số lọc hoặc phân trang không hợp lệ.",
             "content": {
                 "application/json": {
-                    "example": {
-                        "detail": "Số trang phải lớn hơn hoặc bằng 1."
-                    }
+                    "example": {"detail": "Số trang phải lớn hơn hoặc bằng 1."}
                 }
             },
         },
     },
 )
-def list_posts(
+async def list_posts(
+    request: Request,
+    response: Response,
     page: int = Query(
         1, description="Số trang, bắt đầu từ 1; giá trị tối thiểu là 1"
     ),
@@ -70,9 +76,7 @@ def list_posts(
     ),
     published: bool | None = Query(
         None,
-        description=(
-            "Lọc theo trạng thái: true đã xuất bản, false bản nháp"
-        ),
+        description=("Lọc theo trạng thái: true đã xuất bản, false bản nháp"),
     ),
     search: str | None = Query(
         None, description="Tìm từ khóa không rỗng trong tiêu đề và nội dung"
@@ -80,17 +84,19 @@ def list_posts(
     current_user: User | None = Depends(get_optional_current_user),
     db: Session = Depends(get_db),
 ):
-    return post_service.get_all_posts(
+    posts, data_source = await post_service.list_posts(
         db,
+        request.app.state.redis,
         page,
         limit,
         author_id,
         category,
         published,
         search,
-        current_user_id=current_user.id if current_user else None,
-        current_user_role=current_user.role if current_user else None,
+        current_user=current_user,
     )
+    response.headers["X-Data-Source"] = data_source
+    return posts
 
 
 @router.get(
@@ -152,9 +158,7 @@ def get_post(
         401: {
             "description": "Yêu cầu đăng nhập bằng access token.",
             "content": {
-                "application/json": {
-                    "example": {"detail": "Chưa đăng nhập."}
-                }
+                "application/json": {"example": {"detail": "Chưa đăng nhập."}}
             },
         },
         404: {
@@ -184,12 +188,15 @@ def get_post(
         },
     },
 )
-def create_post(
+async def create_post(
     post_data: PostCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return post_service.create_post(db, post_data, current_user.id)
+    return await post_service.create_post_and_invalidate_cache(
+        db, request.app.state.redis, post_data, current_user.id
+    )
 
 
 @router.put(
@@ -221,9 +228,7 @@ def create_post(
                 "Thiếu access token hoặc token không hợp lệ/hết hạn."
             ),
             "content": {
-                "application/json": {
-                    "example": {"detail": "Chưa đăng nhập."}
-                }
+                "application/json": {"example": {"detail": "Chưa đăng nhập."}}
             },
         },
         403: {
@@ -263,34 +268,38 @@ def create_post(
         },
     },
 )
-def update_post(
+async def update_post(
     post_id: int,
     post_data: PostUpdate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return post_service.update_post(db, post_id, post_data, current_user)
+    return await post_service.update_post_and_invalidate_cache(
+        db,
+        request.app.state.redis,
+        post_id,
+        post_data,
+        current_user,
+    )
 
 
 @router.delete(
     "/{post_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
+    status_code=status.HTTP_200_OK,
     summary="Xóa bài viết",
     description=(
         "Xóa bài viết theo ID. Chỉ tác giả của bài hoặc quản trị viên được "
-        "phép. Thành công trả về `204 No Content` và không có nội dung "
-        "phản hồi."
+        "phép. Thành công trả về envelope chuẩn với `data` rỗng."
     ),
-    response_description="Xóa thành công; phản hồi không có nội dung.",
+    response_description="Envelope xác nhận xóa thành công.",
     responses={
         401: {
             "description": (
                 "Thiếu access token hoặc token không hợp lệ/hết hạn."
             ),
             "content": {
-                "application/json": {
-                    "example": {"detail": "Chưa đăng nhập."}
-                }
+                "application/json": {"example": {"detail": "Chưa đăng nhập."}}
             },
         },
         403: {
@@ -315,9 +324,12 @@ def update_post(
         },
     },
 )
-def delete_post(
+async def delete_post(
     post_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    post_service.delete_post(db, post_id, current_user)
+    await post_service.delete_post_and_invalidate_cache(
+        db, request.app.state.redis, post_id, current_user
+    )

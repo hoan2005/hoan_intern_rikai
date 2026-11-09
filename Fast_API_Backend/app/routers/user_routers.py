@@ -7,8 +7,12 @@ from app.dependencies import (
     get_optional_current_user,
 )
 from app.models.user_models import User
-from app.schemas.post_schemas import PostResponse
-from app.schemas.user_schemas import UserCreate, UserResponse, UserUpdate
+from app.schemas.user_schemas import (
+    UserCreate,
+    UserPostsResponse,
+    UserResponse,
+    UserUpdate,
+)
 from app.services import user_service
 
 router = APIRouter(prefix="/users", tags=["Quản lý người dùng"])
@@ -43,9 +47,7 @@ router = APIRouter(prefix="/users", tags=["Quản lý người dùng"])
         401: {
             "description": "Yêu cầu đăng nhập bằng access token.",
             "content": {
-                "application/json": {
-                    "example": {"detail": "Chưa đăng nhập."}
-                }
+                "application/json": {"example": {"detail": "Chưa đăng nhập."}}
             },
         },
     },
@@ -73,9 +75,7 @@ def list_users(
                 "Thiếu access token hoặc token không hợp lệ/hết hạn."
             ),
             "content": {
-                "application/json": {
-                    "example": {"detail": "Chưa đăng nhập."}
-                }
+                "application/json": {"example": {"detail": "Chưa đăng nhập."}}
             },
         },
         404: {
@@ -101,31 +101,42 @@ def get_user(
 
 @router.get(
     "/{user_id}/posts",
-    response_model=list[PostResponse],
+    response_model=list[UserPostsResponse],
     status_code=status.HTTP_200_OK,
-    summary="Lấy danh sách bài viết của người dùng",
+    summary="Lấy bài viết của nhiều người dùng",
     description=(
-        "Lấy các bài viết public của tác giả có ID tương ứng. Khách chưa đăng nhập "
-        "chỉ thấy bài đã xuất bản; tác giả đăng nhập và quản trị viên có thể "
-        "thấy cả bài chưa xuất bản theo quyền truy cập."
+        "Nhận một hoặc nhiều ID người dùng phân tách bằng dấu phẩy, ví dụ "
+        "`/users/1,2/posts`. Mỗi người dùng được trả về cùng danh sách bài "
+        "viết. Chỉ bài public được hiển thị, ngoại trừ người dùng hiện tại "
+        "được xem cả bài nháp của chính mình; quản trị viên xem được mọi "
+        "bài viết, bao gồm cả bài chưa public."
     ),
-    response_description="Danh sách bài viết mà người gọi được phép xem.",
+    response_description="Danh sách người dùng và các bài viết được phép xem.",
     responses={
         200: {
-            "description": "Danh sách bài viết mà người gọi được phép xem.",
+            "description": (
+                "Danh sách người dùng và các bài viết mà người gọi được phép "
+                "xem."
+            ),
             "content": {
                 "application/json": {
                     "example": [
                         {
-                            "id": 1,
-                            "title": "Bắt đầu với FastAPI",
-                            "content": (
-                                "FastAPI giúp xây dựng API Python nhanh chóng."
-                            ),
                             "user_id": 7,
-                            "category": "Công nghệ",
-                            "published": True,
-                            "created_at": "2026-01-01T10:00:00Z",
+                            "posts": [
+                                {
+                                    "id": 1,
+                                    "title": "Bắt đầu với FastAPI",
+                                    "content": (
+                                        "FastAPI giúp xây dựng API Python "
+                                        "nhanh chóng."
+                                    ),
+                                    "user_id": 7,
+                                    "category": "Công nghệ",
+                                    "published": True,
+                                    "created_at": "2026-01-01T10:00:00Z",
+                                }
+                            ],
                         }
                     ]
                 }
@@ -144,7 +155,7 @@ def get_user(
             },
         },
         404: {
-            "description": "Không tìm thấy người dùng với ID đã cung cấp.",
+            "description": "Không tìm thấy một trong các người dùng yêu cầu.",
             "content": {
                 "application/json": {
                     "example": {
@@ -156,15 +167,14 @@ def get_user(
     },
 )
 def list_user_posts(
-    user_id: int,
+    user_id: str,
     db: Session = Depends(get_db),
     current_user: User | None = Depends(get_optional_current_user),
 ):
-    return user_service.get_user_posts(
+    return user_service.get_users_with_posts(
         db,
         user_id,
-        current_user.id if current_user else None,
-        current_user.role if current_user else None,
+        current_user,
     )
 
 
@@ -175,7 +185,9 @@ def list_user_posts(
     summary="Tạo người dùng mới",
     description=(
         "Tạo tài khoản mới. Chỉ quản trị viên được phép gọi API này; vai trò "
-        "mới luôn là `user` và mật khẩu không xuất hiện trong phản hồi."
+        "mới luôn là `user`. Tài khoản và bài viết chào mừng đầu tiên được "
+        "tạo trong cùng một giao dịch; mật khẩu không xuất hiện "
+        "trong phản hồi."
     ),
     response_description="Tài khoản vừa được tạo.",
     responses={
@@ -184,9 +196,7 @@ def list_user_posts(
                 "Thiếu access token hoặc token không hợp lệ/hết hạn."
             ),
             "content": {
-                "application/json": {
-                    "example": {"detail": "Chưa đăng nhập."}
-                }
+                "application/json": {"example": {"detail": "Chưa đăng nhập."}}
             },
         },
         403: {
@@ -268,9 +278,7 @@ def create_user(
                 "Thiếu access token hoặc token không hợp lệ/hết hạn."
             ),
             "content": {
-                "application/json": {
-                    "example": {"detail": "Chưa đăng nhập."}
-                }
+                "application/json": {"example": {"detail": "Chưa đăng nhập."}}
             },
         },
         403: {
@@ -337,22 +345,20 @@ def update_user(
 
 @router.delete(
     "/{user_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
+    status_code=status.HTTP_200_OK,
     summary="Xóa người dùng",
     description=(
         "Xóa tài khoản theo ID. Chỉ quản trị viên được phép thực hiện. "
-        "Thành công trả về `204 No Content` và không có nội dung phản hồi."
+        "Thành công trả về envelope chuẩn."
     ),
-    response_description="Xóa thành công; phản hồi không có nội dung.",
+    response_description="Envelope xác nhận xóa thành công.",
     responses={
         401: {
             "description": (
                 "Thiếu access token hoặc token không hợp lệ/hết hạn."
             ),
             "content": {
-                "application/json": {
-                    "example": {"detail": "Chưa đăng nhập."}
-                }
+                "application/json": {"example": {"detail": "Chưa đăng nhập."}}
             },
         },
         403: {

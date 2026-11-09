@@ -1,10 +1,21 @@
 from fastapi import HTTPException, status
+from redis.asyncio import Redis
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from app.models.post_models import Post
 from app.models.user_models import User
+from app.post_cache import (
+    get_cached_posts,
+    invalidate_posts_cache,
+    set_cached_posts,
+)
 from app.repositories import post_repo, user_repo
-from app.schemas.post_schemas import PostCreate, PostUpdate
+from app.schemas.post_schemas import (
+    PaginatedPostResponse,
+    PostCreate,
+    PostUpdate,
+)
 
 
 def _validate_post_filters(
@@ -64,6 +75,46 @@ def get_all_posts(
         current_user_id=current_user_id,
         is_admin=current_user_role == "admin",
     )
+
+
+async def list_posts(
+    db: Session,
+    redis_client: Redis,
+    page: int = 1,
+    limit: int = 10,
+    author_id: int | None = None,
+    category: str | None = None,
+    published: bool | None = None,
+    search: str | None = None,
+    current_user: User | None = None,
+) -> tuple[PaginatedPostResponse, str]:
+    can_cache = (
+        current_user is None
+        and author_id is None
+        and category is None
+        and published is None
+        and search is None
+    )
+    if can_cache:
+        cached_posts = await get_cached_posts(redis_client, page, limit)
+        if cached_posts is not None:
+            return cached_posts, "redis"
+
+    posts = await run_in_threadpool(
+        get_all_posts,
+        db,
+        page,
+        limit,
+        author_id,
+        category,
+        published,
+        search,
+        current_user_id=current_user.id if current_user else None,
+        current_user_role=current_user.role if current_user else None,
+    )
+    if can_cache:
+        await set_cached_posts(redis_client, page, limit, posts)
+    return PaginatedPostResponse.model_validate(posts), "database"
 
 
 def get_post_by_id(
@@ -130,6 +181,41 @@ def delete_post(db: Session, post_id: int, current_user: User) -> None:
         )
     _ensure_post_owner_or_admin(post, current_user)
     post_repo.delete_post(db, post)
+
+
+async def create_post_and_invalidate_cache(
+    db: Session,
+    redis_client: Redis,
+    post_data: PostCreate,
+    user_id: int,
+) -> Post:
+    post = await run_in_threadpool(create_post, db, post_data, user_id)
+    await invalidate_posts_cache(redis_client)
+    return post
+
+
+async def update_post_and_invalidate_cache(
+    db: Session,
+    redis_client: Redis,
+    post_id: int,
+    post_data: PostUpdate,
+    current_user: User,
+) -> Post:
+    post = await run_in_threadpool(
+        update_post, db, post_id, post_data, current_user
+    )
+    await invalidate_posts_cache(redis_client)
+    return post
+
+
+async def delete_post_and_invalidate_cache(
+    db: Session,
+    redis_client: Redis,
+    post_id: int,
+    current_user: User,
+) -> None:
+    await run_in_threadpool(delete_post, db, post_id, current_user)
+    await invalidate_posts_cache(redis_client)
 
 
 def _ensure_post_owner_or_admin(post: Post, current_user: User) -> None:

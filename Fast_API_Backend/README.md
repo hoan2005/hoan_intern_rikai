@@ -6,6 +6,28 @@ Backend REST API quản lý người dùng và bài viết. Ứng dụng cung c�
 tác tạo, xem, cập nhật và xóa dữ liệu; bài viết còn hỗ trợ tìm kiếm, lọc và
 phân trang. Dữ liệu được lưu trong PostgreSQL.
 
+Các router chỉ tiếp nhận request, lấy dependency và chuyển tiếp đến service.
+Service chịu trách nhiệm kiểm tra nghiệp vụ, phân quyền, xử lý cache và gọi
+repository để truy vấn/cập nhật dữ liệu.
+
+## Định dạng phản hồi API
+
+Tất cả API trả phản hồi thành công theo cấu trúc:
+
+```json
+{"success": true, "message": "Success", "data": {}}
+```
+
+`data` chứa payload của endpoint. Phản hồi lỗi dùng cấu trúc:
+
+```json
+{"success": false, "message": "Mô tả lỗi"}
+```
+
+Mã HTTP vẫn thể hiện kết quả (ví dụ `401`, `404`, `422`, `500`); endpoint
+xóa thành công trả `200` với envelope chuẩn. Các trang tài liệu `/docs`,
+`/redoc` và `/openapi.json` không bị bọc trong envelope.
+
 ## Công nghệ sử dụng
 
 - Python
@@ -106,6 +128,13 @@ khi không còn cần kiểm thử giới hạn thấp. `REDIS_MAX_CONNECTIONS` 
 số kết nối tối đa trong pool Redis của mỗi tiến trình ứng dụng. Không commit
 `app/.env`; có thể sao chép các biến Redis từ `app/.env.example`.
 
+Các request `GET /posts` công khai, không kèm bộ lọc được cache trong Redis
+60 giây theo khóa `posts:page={page}:limit={limit}`. Request có xác thực hoặc
+có bộ lọc luôn đọc dữ liệu mới từ database. Tạo, cập nhật hoặc xóa bài viết
+sẽ xóa toàn bộ các cache trang bài viết. Response `GET /posts` có header
+`X-Data-Source: redis` khi lấy từ cache, hoặc `X-Data-Source: database` khi
+truy vấn cơ sở dữ liệu.
+
 Giữ nguyên cấu hình SCRYPT sau khi đã tạo tài khoản để các mật khẩu hiện có
 tiếp tục được xác thực.
 
@@ -143,9 +172,14 @@ chính:
 | Xác thực | `/profile` | Hồ sơ người dùng đang đăng nhập |
 | Người dùng | `/users` | Danh sách và tạo người dùng |
 | Người dùng | `/users/{user_id}` | Xem, cập nhật hoặc xóa người dùng |
+| Người dùng | `/users/{user_id}/posts` | Lấy bài viết của một hoặc nhiều người dùng |
 | Bài viết | `/posts` | Danh sách, tạo và tìm kiếm bài viết |
 | Bài viết | `/posts/{post_id}` | Xem, cập nhật hoặc xóa bài viết |
 | Bài viết | `/users/{user_id}/posts` | Lấy bài viết của một người dùng |
+
+Để gọi API cần đăng nhập trong Swagger, gọi `POST /login` trước, sao chép
+JWT trong `data.access_token` của response, sau đó bấm **Authorize** và dán
+chỉ token vào trường Bearer. Swagger sẽ tự thêm tiền tố `Bearer` vào header.
 
 Danh sách bài viết hỗ trợ các tham số lọc `author_id`, `category`,
 `published`, tìm kiếm `search`, và phân trang `page`, `limit`. Kết quả được
@@ -167,7 +201,15 @@ không thuộc quyền được phép trả về `404` để không tiết lộ 
 `GET /users` yêu cầu đăng nhập; `POST /users` chỉ admin được dùng. User
 không thể tự gán hoặc đổi role thành `admin`; tài khoản admin ban đầu được
 cấp quyền trực tiếp trong database. Admin có thể quản lý mọi người dùng và
-bài viết; user chỉ quản lý hồ sơ của mình và bản nháp của mình.
+bài viết; user chỉ quản lý hồ sơ của mình và bản nháp của mình. Tạo user
+qua `POST /users` đồng thời tạo một bài viết chào mừng; cả hai được commit
+trong cùng một transaction hoặc cùng rollback nếu có lỗi.
+
+Có thể lấy bài viết của nhiều người dùng bằng cách phân tách ID bằng dấu
+phẩy, ví dụ `GET /users/7,8/posts`. Kết quả được nhóm theo `user_id` và tải
+bằng một truy vấn `joinedload`; mỗi người dùng chỉ thấy bài public của người
+khác, còn bài nháp chỉ hiển thị cho chính chủ. Admin có thể xem bài public
+và chưa public của tất cả người dùng.
 
 TAI_KHOAN_USER:
 username : lam
@@ -183,38 +225,54 @@ passwword : hoan12345
 Fast_API_Backend/
 ├── app/
 │   ├── __init__.py
-│   ├── main.py                     # Khởi tạo FastAPI và đăng ký router
+│   ├── .env.example                 # Mẫu cấu hình Redis và rate limit
+│   ├── main.py                     # Khởi tạo ứng dụng, Redis và đăng ký router/middleware
 │   ├── database.py                 # Cấu hình kết nối SQLAlchemy
-│   ├── dependencies.py             # Dependency dùng chung, ví dụ database session
-│   ├── exceptions.py               # Đăng ký xử lý ngoại lệ
-│   ├── middleware.py               # Ghi nhật ký request và phản hồi
+│   ├── dependencies.py             # Database session và xác thực người dùng
+│   ├── exceptions.py               # Handler cho validation, HTTP và lỗi server
+│   ├── middleware.py               # Ghi log request/response
+│   ├── post_cache.py               # Cache danh sách bài viết và invalidation Redis
 │   ├── rate_limit.py               # Giới hạn request theo client bằng Redis
+│   ├── response_format.py          # Chuẩn hóa envelope response toàn cục
 │   ├── core/
 │   │   ├── config.py               # Đọc cấu hình ứng dụng và database
 │   │   └── logging_config.py       # Cấu hình ghi log vào app.log
 │   ├── migrations/
-│   │   └── 0001_add_post_filter_fields.sql  # Migration cho các trường lọc bài viết
+│   │   ├── 0001_add_post_filter_fields.sql  # Các trường lọc bài viết
+│   │   └── 0002_add_user_role.sql           # Vai trò người dùng
 │   ├── models/
-│   │   └── post_models.py          # Model cơ sở dữ liệu bài viết
+│   │   ├── post_models.py          # Model bài viết và quan hệ với người dùng
+│   │   └── user_models.py          # Model người dùng
 │   ├── routers/
-│   │   └── post_routers.py         # Endpoint API cho bài viết
+│   │   ├── auth_routers.py         # Endpoint đăng nhập và hồ sơ
+│   │   ├── post_routers.py         # Endpoint API bài viết
+│   │   └── user_routers.py         # Endpoint API người dùng
 │   ├── schemas/
-│   │   └── post_schemas.py         # Schema kiểm tra request/response bài viết
+│   │   ├── post_schemas.py         # Schema request/response bài viết
+│   │   └── user_schemas.py         # Schema request/response người dùng
 │   ├── services/
-│   │   └── post_service.py         # Logic nghiệp vụ bài viết
+│   │   ├── auth_service.py         # Xác thực và tạo access token
+│   │   ├── post_service.py         # Nghiệp vụ bài viết và điều phối cache
+│   │   └── user_service.py         # Nghiệp vụ người dùng và phân quyền
 │   └── repositories/
-│       └── post_repo.py            # Truy vấn cơ sở dữ liệu bài viết
+│       ├── post_repo.py            # Truy vấn cơ sở dữ liệu bài viết
+│       └── user_repo.py            # Truy vấn người dùng và eager loading bài viết
 ├── tests/
-│   └── test_posts.py               # Kiểm thử API và chức năng bài viết
+│   ├── test_auth.py                # Kiểm thử xác thực và quyền truy cập
+│   ├── test_logging.py             # Kiểm thử logging và response envelope
+│   ├── test_posts.py               # Kiểm thử API và chức năng bài viết
+│   ├── test_rate_limit.py          # Kiểm thử giới hạn request
+│   └── test_users.py               # Kiểm thử người dùng và eager loading
 ├── requirements.txt                # Dependencies của dự án
-├── app/.env.example                # Mẫu cấu hình Redis và rate limit
 ├── pyproject.toml                  # Cấu hình công cụ Python
 ├── .flake8                         # Cấu hình Flake8
 ├── .gitignore                      # Các file và thư mục Git bỏ qua
+├── .github/
+│   └── copilot-instructions.md     # Hướng dẫn cho Copilot trong repository
 └── README.md                       # Tài liệu dự án
 ```
 
-Với các thư mục có nhiều file, cấu trúc trên chỉ hiển thị một file làm ví dụ.
+Các file `__init__.py` trong thư mục con được lược bỏ để sơ đồ gọn hơn.
 
 ## Kiểm thử
 

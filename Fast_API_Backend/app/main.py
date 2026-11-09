@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.exceptions import register_exception_handlers
 from app.middleware import register_request_logging
 from app.rate_limit import register_rate_limiting
+from app.response_format import register_global_response_format
 
 
 @asynccontextmanager
@@ -31,7 +32,9 @@ app = FastAPI(
     title="thiết kế API backend",
     description=(
         "API quản lý người dùng, xác thực và bài viết. Tài liệu tương tác "
-        "được cung cấp bởi Swagger UI tại `/docs`."
+        "được cung cấp bởi Swagger UI tại `/docs`. Các API trả phản hồi theo "
+        "envelope `{success, message, data}` khi thành công và "
+        "`{success, message}` khi thất bại."
     ),
     version="1.0.0",
     lifespan=lifespan,
@@ -39,6 +42,7 @@ app = FastAPI(
 
 register_rate_limiting(app)
 register_request_logging(app)
+register_global_response_format(app)
 register_exception_handlers(app)
 Base.metadata.create_all(bind=engine)
 
@@ -59,10 +63,16 @@ app.include_router(auth_routers.router)
             "content": {
                 "application/json": {
                     "example": {
-                        "message": (
-                            "Chào mừng đến với Mini CRUD API! Hãy truy cập "
-                            "/docs để sử dụng Swagger UI."
-                        )
+                        "success": True,
+                        "message": "Success",
+                        "data": {
+                            "message": (
+                                "Chào mừng đến với Mini CRUD API! "
+                                "Hãy truy cập "
+                                "/docs để sử dụng "
+                                "Swagger UI."
+                            )
+                        },
                     }
                 }
             },

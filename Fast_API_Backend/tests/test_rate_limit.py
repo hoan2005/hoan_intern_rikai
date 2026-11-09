@@ -4,6 +4,7 @@ import pytest
 from redis.exceptions import RedisError
 
 from app import rate_limit
+from app.response_format import register_global_response_format
 
 
 class FakeRedis:
@@ -24,6 +25,7 @@ def _create_test_app(redis_client: FakeRedis | None = None) -> FastAPI:
     test_app = FastAPI()
     test_app.state.redis = redis_client or FakeRedis()
     rate_limit.register_rate_limiting(test_app)
+    register_global_response_format(test_app)
 
     @test_app.get("/")
     async def root() -> dict[str, str]:
@@ -43,7 +45,10 @@ def test_rate_limit_returns_429_after_configured_request_count(
     response = client.get("/")
 
     assert response.status_code == 429
-    assert response.json() == {"detail": "Too many requests"}
+    assert response.json() == {
+        "success": False,
+        "message": "Too many requests",
+    }
     assert response.headers["Retry-After"] == "60"
 
 
@@ -73,5 +78,8 @@ def test_rate_limit_returns_503_if_redis_is_unavailable(
     response = TestClient(_create_test_app(UnavailableRedis())).get("/")
 
     assert response.status_code == 503
-    assert response.json() == {"detail": "Rate limiting service unavailable"}
+    assert response.json() == {
+        "success": False,
+        "message": "Rate limiting service unavailable",
+    }
     assert "Rate limit check failed" in caplog.text

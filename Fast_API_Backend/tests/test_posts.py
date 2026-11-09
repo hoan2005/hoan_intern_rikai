@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timezone
 from unittest.mock import Mock
 
@@ -8,13 +9,43 @@ from sqlalchemy.dialects import postgresql
 
 from app.dependencies import get_db
 from app.models.post_models import Post
+from app.post_cache import (
+    POSTS_CACHE_TTL_SECONDS,
+    invalidate_posts_cache,
+)
 from app.repositories.post_repo import get_all_posts
 from app.routers import post_routers
 from app.services import post_service
 
 
-def _create_test_client() -> TestClient:
+class FakeRedis:
+    def __init__(self) -> None:
+        self.values: dict[str, str] = {}
+        self.expirations: dict[str, int] = {}
+
+    async def get(self, key: str) -> str | None:
+        return self.values.get(key)
+
+    async def set(self, key: str, value: str, ex: int) -> None:
+        self.values[key] = value
+        self.expirations[key] = ex
+
+    async def scan_iter(self, match: str):
+        assert match == "posts:page=*:limit=*"
+        for key in list(self.values):
+            if key.startswith("posts:page=") and ":limit=" in key:
+                yield key
+
+    async def delete(self, *keys: str) -> int:
+        for key in keys:
+            self.values.pop(key, None)
+            self.expirations.pop(key, None)
+        return len(keys)
+
+
+def _create_test_client(redis_client: FakeRedis | None = None) -> TestClient:
     test_app = FastAPI()
+    test_app.state.redis = redis_client or FakeRedis()
     test_app.include_router(post_routers.router)
     test_app.dependency_overrides[get_db] = lambda: object()
     return TestClient(test_app)
@@ -48,6 +79,7 @@ def test_search_returns_paginated_posts_without_sort_parameter(
     )
 
     assert response.status_code == 200
+    assert response.headers["x-data-source"] == "database"
     assert response.json()["page"] == 2
     assert response.json()["limit"] == 1
     assert response.json()["total"] == 3
@@ -72,7 +104,65 @@ def test_posts_without_search_are_paginated(monkeypatch) -> None:
     response = _create_test_client().get("/posts")
 
     assert response.status_code == 200
+    assert response.headers["x-data-source"] == "database"
     assert response.json() == paginated_posts
+
+
+def test_identical_post_list_requests_use_60_second_cache(
+    monkeypatch,
+) -> None:
+    paginated_posts = {
+        "page": 2,
+        "limit": 5,
+        "total": 0,
+        "items": [],
+    }
+    get_all = Mock(return_value=paginated_posts)
+    monkeypatch.setattr(post_service, "get_all_posts", get_all)
+    redis_client = FakeRedis()
+    client = _create_test_client(redis_client)
+
+    first_response = client.get("/posts", params={"page": 2, "limit": 5})
+    second_response = client.get("/posts", params={"page": 2, "limit": 5})
+
+    assert first_response.json() == paginated_posts
+    assert second_response.json() == paginated_posts
+    assert first_response.headers["x-data-source"] == "database"
+    assert second_response.headers["x-data-source"] == "redis"
+    get_all.assert_called_once()
+    assert redis_client.values["posts:page=2:limit=5"]
+    assert redis_client.expirations["posts:page=2:limit=5"] == (
+        POSTS_CACHE_TTL_SECONDS
+    )
+
+
+def test_filtered_post_list_requests_bypass_cache(monkeypatch) -> None:
+    paginated_posts = {"page": 1, "limit": 10, "total": 0, "items": []}
+    get_all = Mock(return_value=paginated_posts)
+    monkeypatch.setattr(post_service, "get_all_posts", get_all)
+    redis_client = FakeRedis()
+    client = _create_test_client(redis_client)
+
+    first_response = client.get("/posts", params={"category": "news"})
+    second_response = client.get("/posts", params={"category": "news"})
+
+    assert first_response.headers["x-data-source"] == "database"
+    assert second_response.headers["x-data-source"] == "database"
+    assert get_all.call_count == 2
+    assert redis_client.values == {}
+
+
+def test_post_cache_invalidation_removes_every_page_key() -> None:
+    redis_client = FakeRedis()
+    redis_client.values = {
+        "posts:page=1:limit=10": "{}",
+        "posts:page=2:limit=5": "{}",
+        "unrelated:key": "{}",
+    }
+
+    asyncio.run(invalidate_posts_cache(redis_client))
+
+    assert redis_client.values == {"unrelated:key": "{}"}
 
 
 @pytest.mark.parametrize(

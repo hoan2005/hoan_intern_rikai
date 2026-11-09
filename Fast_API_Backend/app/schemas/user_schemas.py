@@ -2,6 +2,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
+from app.schemas.post_schemas import PostResponse
+
 
 def _validate_username(value: str) -> str:
     if len(value) < 3:
@@ -129,6 +131,13 @@ class UserResponse(UserBase):
                 }
             ]
         },
+    )
+
+
+class UserPostsResponse(BaseModel):
+    user_id: int = Field(..., description="ID người dùng")
+    posts: list[PostResponse] = Field(
+        ..., description="Các bài viết mà người gọi được phép xem"
     )
 
 

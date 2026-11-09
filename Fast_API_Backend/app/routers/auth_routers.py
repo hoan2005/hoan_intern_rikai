@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
@@ -27,8 +27,7 @@ router = APIRouter(tags=["Xác thực"])
     responses={
         401: {
             "description": (
-                "Tên đăng nhập/email hoặc mật khẩu không "
-                "chính xác."
+                "Tên đăng nhập/email hoặc mật khẩu không " "chính xác."
             ),
             "content": {
                 "application/json": {
@@ -60,9 +59,7 @@ router = APIRouter(tags=["Xác thực"])
             "description": "Máy chủ chưa cấu hình khóa ký JWT.",
             "content": {
                 "application/json": {
-                    "example": {
-                        "detail": "JWT_SECRET_KEY chưa được cấu hình."
-                    }
+                    "example": {"detail": "JWT_SECRET_KEY chưa được cấu hình."}
                 }
             },
         },
@@ -100,18 +97,7 @@ def login(
     credentials: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ) -> TokenResponse:
-    user_id = auth_service.authenticate_user(
-        db, credentials.username, credentials.password
-    )
-    if user_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Tên đăng nhập/email hoặc mật khẩu không chính xác.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return TokenResponse(
-        access_token=auth_service.create_access_token(user_id)
-    )
+    return auth_service.login(db, credentials.username, credentials.password)
 
 
 @router.get(
@@ -130,9 +116,7 @@ def login(
                 "Thiếu access token hoặc token không hợp lệ/hết hạn."
             ),
             "content": {
-                "application/json": {
-                    "example": {"detail": "Chưa đăng nhập."}
-                }
+                "application/json": {"example": {"detail": "Chưa đăng nhập."}}
             },
         },
     },
