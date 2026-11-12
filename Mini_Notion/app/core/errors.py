@@ -1,0 +1,6 @@
+EMAIL_ALREADY_REGISTERED = "Email đã được đăng ký"
+PASSWORD_CONFIRMATION_MISMATCH = "Mật khẩu xác nhận không khớp"
+INVALID_CREDENTIALS = "Email hoặc mật khẩu không đúng"
+AUTHENTICATION_REQUIRED = "Vui lòng cung cấp token xác thực"
+INVALID_AUTHENTICATION = "Token xác thực không hợp lệ hoặc đã hết hạn"
+INVALID_REQUEST = "Dữ liệu gửi lên không hợp lệ"
