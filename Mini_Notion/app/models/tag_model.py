@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 class Tag(Base):
     __tablename__ = "tags"
     __table_args__ = (
-        UniqueConstraint("user_id", "name", name="unique_user_tag"),
+        UniqueConstraint("user_id", "name", name="uq_tags_user_id_name"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

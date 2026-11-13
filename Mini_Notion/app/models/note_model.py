@@ -24,7 +24,7 @@ class Note(Base):
     __tablename__ = "notes"
     __table_args__ = (
         Index(
-            "ix_notes_collection_id_updated_at",
+            "ix_notes_collection_updated_at_desc",
             "collection_id",
             desc("updated_at"),
         ),

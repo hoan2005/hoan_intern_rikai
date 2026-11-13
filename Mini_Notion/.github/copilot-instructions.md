@@ -105,3 +105,33 @@ Tên file phải có hậu tố đúng với thư mục chứa nó:
 - Đọc code hiện có và theo đúng phong cách trước khi sửa.
 - Thay đổi nhỏ, tập trung; không refactor ngoài yêu cầu.
 - Thư viện hoặc thứ gì mới: theo quy tắc hỏi người dùng ở đầu file.
+
+# Phân trang (Pagination)
+
+## Tham số truy vấn
+
+| Tham số | Quy tắc | Ví dụ |
+|---------|---------|-------|
+| `limit` | Mặc định 10 (hoặc 20); tối thiểu 1; tối đa 100 | `limit=10` |
+| `offset` | Mặc định 0; tối thiểu 0 | `offset=10` → trang 2 |
+
+## Phản hồi
+
+| Trường | Mô tả | Ví dụ |
+|--------|-------|-------|
+| `items` | Mảng các resource | Các note của trang này |
+| `total` | Số lượng sau khi lọc (nên dùng) | `total=42` |
+
+## Sắp xếp
+
+| Quy tắc | Ý nghĩa |
+|---------|---------|
+| `is_pinned DESC, updated_at DESC` | Note ghim nổi lên đầu |
+
+## Thứ tự xử lý
+
+```
+quyền sở hữu → bộ lọc → đếm → sắp xếp → phân trang
+```
+
+> **Lưu ý:** Không bao giờ phân trang rồi mới lọc.

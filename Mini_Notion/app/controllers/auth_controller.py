@@ -27,6 +27,7 @@ from app.services.auth_service import (
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 DbSession = Annotated[Session, Depends(get_db)]
+CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 @router.post(
@@ -60,3 +61,7 @@ def login(payload: LoginRequest, db: DbSession) -> TokenResponse:
             headers={"WWW-Authenticate": "Bearer"},
         ) from error
 
+
+@router.get("/me", response_model=UserRead)
+def get_me(current_user: CurrentUser) -> User:
+    return current_user

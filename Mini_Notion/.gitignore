@@ -1,1 +1,5 @@
 app/.env
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
