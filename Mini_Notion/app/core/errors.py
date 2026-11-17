@@ -6,3 +6,5 @@ INVALID_AUTHENTICATION = "Token xác thực không hợp lệ hoặc đã hết 
 INVALID_REQUEST = "Dữ liệu gửi lên không hợp lệ"
 COLLECTION_NOT_FOUND = "Không tìm thấy bộ sưu tập"
 NOTE_NOT_FOUND = "Không tìm thấy ghi chú"
+TAG_NOT_FOUND = "Không tìm thấy thẻ"
+TAG_ALREADY_EXISTS = "Thẻ đã tồn tại"

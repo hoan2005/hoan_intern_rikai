@@ -109,3 +109,19 @@ def update_note(db: Session, note: Note, changes: dict[str, object]) -> Note:
 def delete_note(db: Session, note: Note) -> None:
     db.delete(note)
     db.commit()
+
+
+def add_tag_to_note(db: Session, note: Note, tag: Tag) -> Note:
+    if tag not in note.tags:
+        note.tags.append(tag)
+        db.commit()
+        db.refresh(note)
+    return note
+
+
+def remove_tag_from_note(db: Session, note: Note, tag: Tag) -> Note:
+    if tag in note.tags:
+        note.tags.remove(tag)
+        db.commit()
+        db.refresh(note)
+    return note

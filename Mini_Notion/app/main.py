@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.controllers.auth_controller import router as auth_router
 from app.controllers.collection_controller import router as collection_router
 from app.controllers.note_controller import router as note_router
+from app.controllers.tag_controller import router as tag_router
 from app.core.config import settings
 from app.core.errors import INVALID_REQUEST
 from app.db.session import get_db
@@ -21,6 +22,7 @@ app = FastAPI(title="Mini Notion API")
 app.include_router(auth_router)
 app.include_router(collection_router)
 app.include_router(note_router)
+app.include_router(tag_router)
 
 
 @app.exception_handler(RequestValidationError)

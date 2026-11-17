@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 
 from app.models.note_model import Note
+from app.models.tag_model import Tag
 from app.repositories import note_repository
 from app.schemas.note_schema import NoteCreate, NoteUpdate
 
@@ -82,3 +83,11 @@ def update_note(db: Session, note: Note, payload: NoteUpdate) -> Note:
 
 def delete_note(db: Session, note: Note) -> None:
     note_repository.delete_note(db, note)
+
+
+def add_tag_to_note(db: Session, note: Note, tag: Tag) -> Note:
+    return note_repository.add_tag_to_note(db, note, tag)
+
+
+def remove_tag_from_note(db: Session, note: Note, tag: Tag) -> Note:
+    return note_repository.remove_tag_from_note(db, note, tag)

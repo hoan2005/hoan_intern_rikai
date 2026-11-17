@@ -4,11 +4,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user
-from app.core.errors import NOTE_NOT_FOUND
+from app.core.errors import NOTE_NOT_FOUND, TAG_NOT_FOUND
 from app.db.session import get_db
+from app.models.tag_model import Tag
 from app.models.user_model import User
 from app.schemas.note_schema import NoteList, NoteRead, NoteUpdate
-from app.services import note_service
+from app.services import note_service, tag_service
 
 router = APIRouter(prefix="/notes", tags=["notes"])
 DbSession = Annotated[Session, Depends(get_db)]
@@ -82,3 +83,55 @@ def delete_note(
         )
     note_service.delete_note(db, note)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/{id}/tags/{tag_id}",
+    response_model=NoteRead,
+    status_code=status.HTTP_200_OK,
+)
+def add_tag_to_note(
+    id: int,
+    tag_id: int,
+    db: DbSession,
+    current_user: CurrentUser,
+) -> NoteRead:
+    note = note_service.get_note(db, id, current_user.id)
+    if note is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=NOTE_NOT_FOUND,
+        )
+    tag = tag_service.get_tag(db, tag_id, current_user.id)
+    if tag is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=TAG_NOT_FOUND,
+        )
+    return note_service.add_tag_to_note(db, note, tag)
+
+
+@router.delete(
+    "/{id}/tags/{tag_id}",
+    response_model=NoteRead,
+    status_code=status.HTTP_200_OK,
+)
+def remove_tag_from_note(
+    id: int,
+    tag_id: int,
+    db: DbSession,
+    current_user: CurrentUser,
+) -> NoteRead:
+    note = note_service.get_note(db, id, current_user.id)
+    if note is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=NOTE_NOT_FOUND,
+        )
+    tag = tag_service.get_tag(db, tag_id, current_user.id)
+    if tag is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=TAG_NOT_FOUND,
+        )
+    return note_service.remove_tag_from_note(db, note, tag)

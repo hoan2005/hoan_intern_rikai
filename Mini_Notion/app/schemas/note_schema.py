@@ -12,7 +12,7 @@ from pydantic import (
 class NoteCreate(BaseModel):
     title: str = Field(min_length=1, max_length=255)
     body: str | None = Field(default=None, max_length=10000)
-
+    
     @field_validator("title")
     @classmethod
     def validate_title(cls, value: str) -> str:
