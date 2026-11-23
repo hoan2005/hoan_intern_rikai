@@ -68,6 +68,7 @@ class UserRead(BaseModel):
     id: int
     email: str
     full_name: str
+    role: str
 
 
 class TokenResponse(BaseModel):

@@ -27,11 +27,13 @@ def notes_api():
             email="notes-a@gmail.com",
             password_hash="not-used",
             full_name="User A",
+            role="user",
         )
         user_b = User(
             email="notes-b@gmail.com",
             password_hash="not-used",
             full_name="User B",
+            role="user",
         )
         db.add_all([user_a, user_b])
         db.flush()
@@ -85,7 +87,7 @@ def notes_api():
             yield db
 
     def override_get_current_user() -> User:
-        return User(id=user_id)
+        return User(id=user_id, role="user")
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_user] = override_get_current_user

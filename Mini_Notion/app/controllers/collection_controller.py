@@ -5,6 +5,14 @@ from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user
 from app.core.errors import COLLECTION_NOT_FOUND
+from app.core.permissions import (
+    RequireCollectionsCreate,
+    RequireCollectionsDelete,
+    RequireCollectionsRead,
+    RequireCollectionsUpdate,
+    RequireNotesCreate,
+    RequireNotesRead,
+)
 from app.db.session import get_db
 from app.models.collection_model import Collection
 from app.models.user_model import User
@@ -18,7 +26,11 @@ from app.schemas.note_schema import NoteCreate, NoteList, NoteRead
 from app.services import collection_service
 from app.services import note_service
 
-router = APIRouter(prefix="/collections", tags=["collections"])
+router = APIRouter(
+    prefix="/collections",
+    tags=["collections"],
+    dependencies=[Depends(get_current_user)],
+)
 DbSession = Annotated[Session, Depends(get_db)]
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
@@ -27,6 +39,7 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 def list_collections(
     db: DbSession,
     current_user: CurrentUser,
+    _: Annotated[User, Depends(RequireCollectionsRead)],
     limit: Annotated[int, Query(ge=1, le=100)] = 10,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> CollectionList:
@@ -50,6 +63,7 @@ def create_collection(
     payload: CollectionCreate,
     db: DbSession,
     current_user: CurrentUser,
+    _: Annotated[User, Depends(RequireCollectionsCreate)],
 ) -> Collection:
     return collection_service.create_collection(db, current_user.id, payload)
 
@@ -59,6 +73,7 @@ def get_collection(
     id: int,
     db: DbSession,
     current_user: CurrentUser,
+    _: Annotated[User, Depends(RequireCollectionsRead)],
 ) -> Collection:
     collection = collection_service.get_collection(db, id, current_user.id)
     if collection is None:
@@ -75,6 +90,7 @@ def update_collection(
     payload: CollectionUpdate,
     db: DbSession,
     current_user: CurrentUser,
+    _: Annotated[User, Depends(RequireCollectionsUpdate)],
 ) -> Collection:
     collection = collection_service.get_collection(db, id, current_user.id)
     if collection is None:
@@ -93,6 +109,7 @@ def delete_collection(
     id: int,
     db: DbSession,
     current_user: CurrentUser,
+    _: Annotated[User, Depends(RequireCollectionsDelete)],
 ) -> Response:
     collection = collection_service.get_collection(db, id, current_user.id)
     if collection is None:
@@ -114,6 +131,7 @@ def create_note(
     payload: NoteCreate,
     db: DbSession,
     current_user: CurrentUser,
+    _: Annotated[User, Depends(RequireNotesCreate)],
 ) -> NoteRead:
     note = note_service.create_note(db, id, current_user.id, payload)
     if note is None:
@@ -129,6 +147,7 @@ def list_collection_notes(
     id: int,
     db: DbSession,
     current_user: CurrentUser,
+    _: Annotated[User, Depends(RequireNotesRead)],
     query: Annotated[str | None, Query(alias="q", max_length=255)] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 10,
     offset: Annotated[int, Query(ge=0)] = 0,

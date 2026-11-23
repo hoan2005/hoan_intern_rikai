@@ -12,6 +12,7 @@ def client():
         id=1,
         email="user@gmail.com",
         full_name="Người dùng",
+        role="user",
     )
     with TestClient(app) as test_client:
         yield test_client
@@ -26,5 +27,6 @@ def test_get_current_user_profile(client):
         "id": 1,
         "email": "user@gmail.com",
         "full_name": "Người dùng",
+        "role": "user",
     }
     assert "password_hash" not in response.json()

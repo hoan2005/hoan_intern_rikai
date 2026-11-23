@@ -26,11 +26,13 @@ def api():
                 email="user1@gmail.com",
                 password_hash="not-used",
                 full_name="User One",
+                role="user",
             ),
             User(
                 email="user2@gmail.com",
                 password_hash="not-used",
                 full_name="User Two",
+                role="user",
             ),
         ]
         db.add_all(users)
@@ -44,7 +46,7 @@ def api():
             yield db
 
     def override_get_current_user() -> User:
-        return User(id=active_user_id["value"])
+        return User(id=active_user_id["value"], role="user")
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_user] = override_get_current_user

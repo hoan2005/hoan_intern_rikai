@@ -5,13 +5,22 @@ from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user
 from app.core.errors import NOTE_NOT_FOUND, TAG_NOT_FOUND
+from app.core.permissions import (
+    RequireNotesDelete,
+    RequireNotesManageTags,
+    RequireNotesRead,
+    RequireNotesUpdate,
+)
 from app.db.session import get_db
-from app.models.tag_model import Tag
 from app.models.user_model import User
 from app.schemas.note_schema import NoteList, NoteRead, NoteUpdate
 from app.services import note_service, tag_service
 
-router = APIRouter(prefix="/notes", tags=["notes"])
+router = APIRouter(
+    prefix="/notes",
+    tags=["notes"],
+    dependencies=[Depends(get_current_user)],
+)
 DbSession = Annotated[Session, Depends(get_db)]
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
@@ -20,6 +29,7 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 def list_notes(
     db: DbSession,
     current_user: CurrentUser,
+    _: Annotated[User, Depends(RequireNotesRead)],
     collection_id: Annotated[int | None, Query(ge=1)] = None,
     query: Annotated[str | None, Query(alias="q", max_length=255)] = None,
     tag: Annotated[str | None, Query(max_length=50)] = None,
@@ -43,6 +53,7 @@ def get_note(
     id: int,
     db: DbSession,
     current_user: CurrentUser,
+    _: Annotated[User, Depends(RequireNotesRead)],
 ) -> NoteRead:
     note = note_service.get_note(db, id, current_user.id)
     if note is None:
@@ -59,6 +70,7 @@ def update_note(
     payload: NoteUpdate,
     db: DbSession,
     current_user: CurrentUser,
+    _: Annotated[User, Depends(RequireNotesUpdate)],
 ) -> NoteRead:
     note = note_service.get_note(db, id, current_user.id)
     if note is None:
@@ -74,6 +86,7 @@ def delete_note(
     id: int,
     db: DbSession,
     current_user: CurrentUser,
+    _: Annotated[User, Depends(RequireNotesDelete)],
 ) -> Response:
     note = note_service.get_note(db, id, current_user.id)
     if note is None:
@@ -95,6 +108,7 @@ def add_tag_to_note(
     tag_id: int,
     db: DbSession,
     current_user: CurrentUser,
+    _: Annotated[User, Depends(RequireNotesManageTags)],
 ) -> NoteRead:
     note = note_service.get_note(db, id, current_user.id)
     if note is None:
@@ -121,6 +135,7 @@ def remove_tag_from_note(
     tag_id: int,
     db: DbSession,
     current_user: CurrentUser,
+    _: Annotated[User, Depends(RequireNotesManageTags)],
 ) -> NoteRead:
     note = note_service.get_note(db, id, current_user.id)
     if note is None:
