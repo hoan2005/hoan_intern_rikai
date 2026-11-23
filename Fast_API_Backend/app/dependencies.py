@@ -1,4 +1,5 @@
 from collections.abc import Generator
+from typing import Callable
 
 import jwt
 from fastapi import Depends, HTTPException, status
@@ -7,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.database import SessionLocal
+from app.models.post_models import Post
 from app.models.user_models import User
 from app.repositories import user_repo
 
@@ -90,10 +92,53 @@ def get_current_user_id(
     return user.id
 
 
-def require_admin(
+def require_role(*allowed_roles: str) -> Callable[[User], User]:
+    def role_checker(current_user: User = Depends(get_current_user)) -> User:
+        if current_user.role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Bạn chưa đủ quyền thực hiện thao tác này.",
+            )
+        return current_user
+
+    return role_checker
+
+
+def require_admin(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bạn chưa đủ quyền thực hiện thao tác này.",
+        )
+    return current_user
+
+
+def require_user_or_admin(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role not in ("user", "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bạn chưa đủ quyền thực hiện thao tác này.",
+        )
+    return current_user
+
+
+def require_resource_owner(
+    user_id: int,
     current_user: User = Depends(get_current_user),
 ) -> User:
-    if current_user.role != "admin":
+    if current_user.role != "admin" and current_user.id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bạn chưa đủ quyền thực hiện thao tác này.",
+        )
+    return current_user
+
+
+def require_post_owner_or_admin(
+    post: Post = Depends(),
+    current_user: User = Depends(get_current_user),
+) -> User:
+    if current_user.role != "admin" and current_user.id != post.user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Bạn chưa đủ quyền thực hiện thao tác này.",

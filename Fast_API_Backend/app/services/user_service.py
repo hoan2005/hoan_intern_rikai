@@ -95,7 +95,6 @@ def get_users_with_posts(
 def create_user(
     db: Session, user_data: UserCreate, current_user: User
 ) -> User:
-    _ensure_admin(current_user)
     user = User(
         username=user_data.username,
         email=str(user_data.email),
@@ -117,10 +116,6 @@ def update_user(
     user_data: UserUpdate,
     current_user: User,
 ) -> User:
-    if current_user.role != "admin" and (
-        "role" in user_data.model_fields_set or user_id != current_user.id
-    ):
-        _raise_forbidden()
     user = get_user_by_id(db, user_id)
     update_data = user_data.model_dump(exclude_unset=True, exclude_none=True)
     if not update_data:
@@ -145,18 +140,5 @@ def update_user(
 
 
 def delete_user(db: Session, user_id: int, current_user: User) -> str:
-    _ensure_admin(current_user)
     user = get_user_by_id(db, user_id)
     return user_repo.delete_user(db, user)
-
-
-def _ensure_admin(current_user: User) -> None:
-    if current_user.role != "admin":
-        _raise_forbidden()
-
-
-def _raise_forbidden() -> None:
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="Bạn chưa đủ quyền thực hiện thao tác này.",
-    )

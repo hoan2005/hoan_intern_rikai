@@ -162,7 +162,6 @@ def update_post(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Không tìm thấy bài viết với ID: {post_id}",
         )
-    _ensure_post_owner_or_admin(post, current_user)
     update_data = post_data.model_dump(exclude_unset=True, exclude_none=True)
     if not update_data:
         raise HTTPException(
@@ -179,7 +178,6 @@ def delete_post(db: Session, post_id: int, current_user: User) -> None:
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Không tìm thấy bài viết với ID: {post_id}",
         )
-    _ensure_post_owner_or_admin(post, current_user)
     post_repo.delete_post(db, post)
 
 
@@ -216,11 +214,3 @@ async def delete_post_and_invalidate_cache(
 ) -> None:
     await run_in_threadpool(delete_post, db, post_id, current_user)
     await invalidate_posts_cache(redis_client)
-
-
-def _ensure_post_owner_or_admin(post: Post, current_user: User) -> None:
-    if current_user.role != "admin" and post.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Bạn chưa đủ quyền thực hiện thao tác này.",
-        )

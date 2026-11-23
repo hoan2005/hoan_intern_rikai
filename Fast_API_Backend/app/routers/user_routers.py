@@ -5,6 +5,8 @@ from app.dependencies import (
     get_current_user,
     get_db,
     get_optional_current_user,
+    require_admin,
+    require_resource_owner,
 )
 from app.models.user_models import User
 from app.schemas.user_schemas import (
@@ -93,9 +95,8 @@ def list_users(
 def get_user(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    _: User = Depends(get_current_user),
 ):
-
     return user_service.get_user_by_id(db, user_id)
 
 
@@ -171,11 +172,7 @@ def list_user_posts(
     db: Session = Depends(get_db),
     current_user: User | None = Depends(get_optional_current_user),
 ):
-    return user_service.get_users_with_posts(
-        db,
-        user_id,
-        current_user,
-    )
+    return user_service.get_users_with_posts(db, user_id, current_user)
 
 
 @router.post(
@@ -243,9 +240,9 @@ def list_user_posts(
 def create_user(
     user_data: UserCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    _: User = Depends(require_admin),
 ):
-    return user_service.create_user(db, user_data, current_user)
+    return user_service.create_user(db, user_data)
 
 
 @router.put(
@@ -338,7 +335,7 @@ def update_user(
     user_id: int,
     user_data: UserUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_resource_owner),
 ):
     return user_service.update_user(db, user_id, user_data, current_user)
 
@@ -386,6 +383,6 @@ def update_user(
 def delete_user(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    _: User = Depends(require_admin),
 ):
-    return user_service.delete_user(db, user_id, current_user)
+    return user_service.delete_user(db, user_id)

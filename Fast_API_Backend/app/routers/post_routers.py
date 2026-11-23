@@ -5,8 +5,11 @@ from app.dependencies import (
     get_current_user,
     get_db,
     get_optional_current_user,
+    require_post_owner_or_admin,
 )
+from app.models.post_models import Post
 from app.models.user_models import User
+from app.repositories import post_repo
 from app.schemas.post_schemas import (
     PaginatedPostResponse,
     PostCreate,
@@ -16,6 +19,21 @@ from app.schemas.post_schemas import (
 from app.services import post_service
 
 router = APIRouter(prefix="/posts", tags=["Quản lý bài viết"])
+
+
+def get_post_for_update_or_delete(
+    post_id: int,
+    db: Session = Depends(get_db),
+) -> Post:
+    post = post_repo.get_post_by_id(db, post_id)
+    if post is None:
+        from fastapi import HTTPException
+
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Không tìm thấy bài viết với ID: {post_id}",
+        )
+    return post
 
 
 @router.get(
@@ -269,18 +287,14 @@ async def create_post(
     },
 )
 async def update_post(
-    post_id: int,
     post_data: PostUpdate,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    post: Post = Depends(get_post_for_update_or_delete),
+    current_user: User = Depends(require_post_owner_or_admin),
 ):
     return await post_service.update_post_and_invalidate_cache(
-        db,
-        request.app.state.redis,
-        post_id,
-        post_data,
-        current_user,
+        db, request.app.state.redis, post.id, post_data, current_user
     )
 
 
@@ -325,11 +339,11 @@ async def update_post(
     },
 )
 async def delete_post(
-    post_id: int,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    post: Post = Depends(get_post_for_update_or_delete),
+    current_user: User = Depends(require_post_owner_or_admin),
 ):
     await post_service.delete_post_and_invalidate_cache(
-        db, request.app.state.redis, post_id, current_user
+        db, request.app.state.redis, post.id, current_user
     )
